@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: #fff;
+        }
+
+        .header {
+            background-color: #000;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .card h3 {
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+
+        .card p {
+            font-size: 14px;
+            margin-bottom: 20px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .card a {
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            background: #007bff;
+            color: white;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .card a:hover {
+            background: #0056b3;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Admin Dashboard</h1>
+    </div>
+    <div class="dashboard-container">
+        <div class="card">
+            <h3>Register New User</h3>
+            <p>Create and manage user accounts for the platform.</p>
+            <a href="/register.html">Go to Registration</a>
+        </div>
+        <div class="card">
+            <h3>Add New Course</h3>
+            <p>Add and manage courses available to users.</p>
+            <a href="/add-course.html">Add a Course</a>
+        </div>
+        <div class="card">
+            <h3>View Reports</h3>
+            <p>Analyze platform usage and performance (Coming Soon).</p>
+            <!-- Updated Link for View Reports -->
+            <a href="/reports">View Reports</a>
+        </div>
+        <div class="card">
+            <h3>Manage Users</h3>
+            <p>Edit, delete, and manage user permissions (Coming Soon).</p>
+            <!-- Updated Link for Manage Users -->
+            <a href="/manage-users">Manage Users</a>
+        </div>
+    </div>
+    <div class="footer">
+        <p>© 2024 E-Learning Platform. Admin Dashboard.</p>
+    </div>
+</body>
+</html>

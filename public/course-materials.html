@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Materials</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: #fff;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            background-color: #000;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .materials-list {
+            padding: 20px;
+            margin: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .material-item {
+            background: rgba(255, 255, 255, 0.2);
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        .material-item a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .material-item a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Course Materials</h1>
+    </div>
+
+    <div class="materials-list">
+        <h2>Materials</h2>
+        <div id="materials">
+            <!-- List of materials will be populated here -->
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>© 2024 E-Learning Platform. Course Materials Page.</p>
+    </div>
+
+    <script>
+        const courseId = new URLSearchParams(window.location.search).get('courseId'); // Get courseId from URL
+
+        // Function to fetch and display materials
+        async function fetchMaterials() {
+            try {
+                const response = await fetch(`/materials/${courseId}`);
+                const data = await response.json();
+
+                if (response.ok && data.length > 0) {
+                    const materialsContainer = document.getElementById('materials');
+                    materialsContainer.innerHTML = ''; // Clear any previous content
+
+                    // Loop through materials and display them
+                    data.forEach(material => {
+                        const materialElement = document.createElement('div');
+                        materialElement.classList.add('material-item');
+                        materialElement.innerHTML = `
+                            <span><strong>${material.material_name}</strong> (${material.material_type})</span>
+                            <a href="${material.material_link}" target="_blank">View Material</a>
+                        `;
+                        materialsContainer.appendChild(materialElement);
+                    });
+                } else {
+                    document.getElementById('materials').innerHTML = '<p>No materials available for this course.</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching materials:', error);
+                alert('An error occurred while fetching materials.');
+            }
+        }
+
+        // Call fetchMaterials function on page load
+        fetchMaterials();
+    </script>
+
+</body>
+</html>

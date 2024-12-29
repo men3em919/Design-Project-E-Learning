@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: #fff;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            background-color: #000;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .course-list {
+            padding: 20px;
+            margin: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .course-list h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .course-item {
+            background: rgba(255, 255, 255, 0.2);
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .course-item button {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .course-item button:hover {
+            background-color: #0056b3;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Welcome, <span id="student-username">Student</span>!</h1>
+    </div>
+
+    <div class="course-list">
+        <h2>Available Courses</h2>
+        <div id="courses">
+            <!-- List of courses will be populated here -->
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>© 2024 E-Learning Platform. Student Dashboard.</p>
+    </div>
+
+    <script>
+        // Function to fetch and display courses
+        async function fetchCourses() {
+            try {
+                const response = await fetch('/courses');
+                const data = await response.json();
+
+                if (response.ok && data.length > 0) {
+                    const coursesContainer = document.getElementById('courses');
+                    coursesContainer.innerHTML = ''; // Clear any previous content
+
+                    // Loop through courses and display them
+                    data.forEach(course => {
+    const courseElement = document.createElement('div');
+    courseElement.classList.add('course-item');
+    courseElement.innerHTML = `
+        <span><strong>${course.course_name}</strong> - ${course.course_description}</span>
+        <button onclick="enrollCourse(${course.course_id}, '${course.course_name}')">Enroll</button>
+    `;
+    coursesContainer.appendChild(courseElement);
+});
+
+                } else {
+                    document.getElementById('courses').innerHTML = '<p>No courses available.</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching courses:', error);
+                alert('An error occurred while fetching the courses.');
+            }
+        }
+
+        function enrollCourse(courseId, courseName) {
+    // Store course details locally (optional)
+    localStorage.setItem('courseId', courseId);
+    localStorage.setItem('courseName', courseName);
+
+    // Redirect to the materials page with the course ID
+    window.location.href = `/course-materials.html?courseId=${courseId}`;
+}
+
+
+        // Function to display the student's username
+        function displayUsername() {
+            const username = localStorage.getItem('username'); // Assuming username is saved in local storage
+            if (username) {
+                document.getElementById('student-username').textContent = username; // Display username
+            }
+        }
+
+        // Call the functions on page load
+        displayUsername();
+        fetchCourses();
+    </script>
+
+</body>
+</html>
