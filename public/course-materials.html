@@ -65,6 +65,12 @@
         <h1>Course Materials</h1>
     </div>
 
+    <!-- Optional course info display -->
+    <div class="course-info">
+        <h2 id="course-name">Course Name</h2>
+        <p id="course-description">Course Description</p>
+    </div>
+
     <div class="materials-list">
         <h2>Materials</h2>
         <div id="materials">
@@ -79,37 +85,71 @@
     <script>
         const courseId = new URLSearchParams(window.location.search).get('courseId'); // Get courseId from URL
 
-        // Function to fetch and display materials
-        async function fetchMaterials() {
+        // Function to fetch and display course info
+        async function fetchCourseInfo() {
             try {
-                const response = await fetch(`/materials/${courseId}`);
+                const response = await fetch(`/course/${courseId}`); // Adjust URL if needed
                 const data = await response.json();
 
-                if (response.ok && data.length > 0) {
-                    const materialsContainer = document.getElementById('materials');
-                    materialsContainer.innerHTML = ''; // Clear any previous content
-
-                    // Loop through materials and display them
-                    data.forEach(material => {
-                        const materialElement = document.createElement('div');
-                        materialElement.classList.add('material-item');
-                        materialElement.innerHTML = `
-                            <span><strong>${material.material_name}</strong> (${material.material_type})</span>
-                            <a href="${material.material_link}" target="_blank">View Material</a>
-                        `;
-                        materialsContainer.appendChild(materialElement);
-                    });
+                if (response.ok && data) {
+                    document.getElementById('course-name').innerText = data.course_name;
+                    document.getElementById('course-description').innerText = data.course_description;
                 } else {
-                    document.getElementById('materials').innerHTML = '<p>No materials available for this course.</p>';
+                    alert('Course details could not be retrieved.');
                 }
             } catch (error) {
-                console.error('Error fetching materials:', error);
-                alert('An error occurred while fetching materials.');
+                console.error('Error fetching course info:', error);
             }
         }
 
-        // Call fetchMaterials function on page load
-        fetchMaterials();
+        // Function to fetch and display materials
+        async function fetchCourseInfo() {
+    try {
+        const response = await fetch(`/course/${courseId}`);
+        const data = await response.json();
+
+        if (response.ok && data) {
+            document.getElementById('course-name').innerText = data.course_name;
+            document.getElementById('course-description').innerText = data.course_description;
+        } else {
+            alert('Course details could not be retrieved.');
+        }
+    } catch (error) {
+        console.error('Error fetching course info:', error);
+    }
+}
+
+async function fetchMaterials() {
+    try {
+        const response = await fetch(`/materials/${courseId}`);
+        const data = await response.json();
+
+        if (response.ok && data.length > 0) {
+            const materialsContainer = document.getElementById('materials');
+            materialsContainer.innerHTML = ''; // Clear previous content
+
+            data.forEach(material => {
+                const materialElement = document.createElement('div');
+                materialElement.classList.add('material-item');
+                materialElement.innerHTML = `
+                    <span><strong>${material.material_name}</strong> (${material.material_type})</span>
+                    <a href="${material.material_link}" target="_blank">View Material</a>
+                `;
+                materialsContainer.appendChild(materialElement);
+            });
+        } else {
+            document.getElementById('materials').innerHTML = '<p>No materials available for this course.</p>';
+        }
+    } catch (error) {
+        console.error('Error fetching materials:', error);
+        alert('An error occurred while fetching materials.');
+    }
+}
+
+
+        // Call fetch functions on page load
+        fetchCourseInfo(); // Fetch and display course info
+        fetchMaterials(); // Fetch and display materials
     </script>
 
 </body>

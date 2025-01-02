@@ -10,6 +10,14 @@ const port = 3000;
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files
+const session = require('express-session');
+
+app.use(session({
+    secret: 'your-secret-key', // Replace with your own secret
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false } // Use 'secure: true' in production with HTTPS
+}));
 
 // Serve Admin Dashboard
 app.get('/admin', (req, res) => {
@@ -40,11 +48,11 @@ app.post('/login', async (req, res) => {
 
         if (result.rows.length > 0) {
             const user = result.rows[0];
+            req.session.userId = user.user_id; // Store userId in session
+
             if (user.role === 'Admin') {
-                // Redirect to admin dashboard
                 res.json({ success: true, role: 'Admin', redirectUrl: '/admin' });
             } else if (user.role === 'Student') {
-                // Redirect to student dashboard
                 res.json({ success: true, role: 'Student', redirectUrl: `/student-dashboard/${username}` });
             } else {
                 res.status(400).json({ success: false, message: 'Unknown user role.' });
@@ -59,15 +67,36 @@ app.post('/login', async (req, res) => {
 });
 
 // Endpoint to get courses for students
+// Endpoint to get courses for students
 app.get('/courses', async (req, res) => {
+    const userId = req.session.userId; // Get the user ID from the session
+
+    if (!userId) {
+        return res.status(401).send('You must be logged in to view courses.');
+    }
+
     try {
         const result = await pool.query('SELECT * FROM courses'); // Fetch all courses
-        res.json(result.rows); // Send the result as JSON
+
+        // Check enrollments for the user
+        const enrollmentsResult = await pool.query(
+            'SELECT course_id FROM enrollments WHERE user_id = $1', [userId]
+        );
+        const enrolledCourseIds = enrollmentsResult.rows.map(row => row.course_id);
+
+        // Add `isEnrolled` flag to each course
+        const coursesWithEnrollmentStatus = result.rows.map(course => ({
+            ...course,
+            isEnrolled: enrolledCourseIds.includes(course.course_id)
+        }));
+
+        res.json(coursesWithEnrollmentStatus); // Send the result as JSON
     } catch (error) {
         console.error('Error fetching courses:', error);
         res.status(500).json({ success: false, message: 'An error occurred while fetching courses.' });
     }
 });
+
 // Fetch materials for a course
 // Endpoint to get materials for a specific course
 app.get('/materials/:courseId', async (req, res) => {
@@ -92,31 +121,54 @@ app.get('/materials/:courseId', async (req, res) => {
 });
 
 // Enroll in a course
+// Enroll in a course
 app.post('/enroll', async (req, res) => {
-    const { user_id, course_id } = req.body;
+    const userId = req.session.userId;
+
+    if (!userId) {
+        return res.status(401).send('You must be logged in to enroll.');
+    }
+
+    const courseId = req.body.courseId;
+
+    if (!courseId) {
+        return res.status(400).send('Course ID is required.');
+    }
 
     try {
+        // Check if the course exists
+        const courseResult = await pool.query('SELECT * FROM courses WHERE course_id = $1', [courseId]);
+
+        if (courseResult.rows.length === 0) {
+            return res.status(404).send('Course not found.');
+        }
+
         // Check if the user is already enrolled in the course
         const existingEnrollment = await pool.query(
-            'SELECT * FROM course_enrollments WHERE user_id = $1 AND course_id = $2',
-            [user_id, course_id]
+            'SELECT * FROM enrollments WHERE user_id = $1 AND course_id = $2',
+            [userId, courseId]
         );
 
         if (existingEnrollment.rows.length > 0) {
-            return res.status(400).send('User is already enrolled in this course.');
+            return res.status(400).send('You are already enrolled in this course.');
         }
 
-        // Insert a new enrollment with 'Pending' status
-        await pool.query(
-            'INSERT INTO course_enrollments (user_id, course_id, enrollment_status) VALUES ($1, $2, $3)',
-            [user_id, course_id, 'Enrolled']
-        );
-        res.send('Enrollment successful!');
+        // Insert the enrollment into the database
+        const query = 'INSERT INTO enrollments (user_id, course_id, enrolled_at) VALUES ($1, $2, NOW())';
+        await pool.query(query, [userId, courseId]);
+
+        // Send a success response after successful enrollment
+        res.json({ success: true });
     } catch (error) {
         console.error('Error during enrollment:', error);
-        res.status(500).send('An error occurred while enrolling in the course.');
+        res.status(500).send('An error occurred while enrolling in this course.');
     }
 });
+
+
+
+
+
 
 
 // Register Endpoint

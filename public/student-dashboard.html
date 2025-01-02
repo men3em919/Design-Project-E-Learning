@@ -88,42 +88,96 @@
     <script>
         // Function to fetch and display courses
         async function fetchCourses() {
-            try {
-                const response = await fetch('/courses');
-                const data = await response.json();
+    try {
+        const response = await fetch('/courses'); // Fetch courses from the server
+        const data = await response.json();
 
-                if (response.ok && data.length > 0) {
-                    const coursesContainer = document.getElementById('courses');
-                    coursesContainer.innerHTML = ''; // Clear any previous content
+        if (response.ok && data.length > 0) {
+            const coursesContainer = document.getElementById('courses');
+            coursesContainer.innerHTML = ''; // Clear previous content
 
-                    // Loop through courses and display them
-                    data.forEach(course => {
-    const courseElement = document.createElement('div');
-    courseElement.classList.add('course-item');
-    courseElement.innerHTML = `
-        <span><strong>${course.course_name}</strong> - ${course.course_description}</span>
-        <button onclick="enrollCourse(${course.course_id}, '${course.course_name}')">Enroll</button>
-    `;
-    coursesContainer.appendChild(courseElement);
-});
+            data.forEach(course => {
+                const courseElement = document.createElement('div');
+                courseElement.classList.add('course-item');
+                courseElement.innerHTML = `
+                    <span><strong>${course.course_name}</strong> - ${course.course_description}</span>
+                    <div>
+                        <button 
+                            id="enroll-btn-${course.course_id}" 
+                            onclick="enrollCourse(${course.course_id}, '${course.course_name}')" 
+                            ${course.isEnrolled ? 'disabled' : ''}>
+                            ${course.isEnrolled ? 'Enrolled' : 'Enroll'}
+                        </button>
+                        ${course.isEnrolled ? 
+                            `<button onclick="viewMaterials(${course.course_id})">View Material</button>` : 
+                            ''}
+                    </div>
+                `;
 
-                } else {
-                    document.getElementById('courses').innerHTML = '<p>No courses available.</p>';
-                }
-            } catch (error) {
-                console.error('Error fetching courses:', error);
-                alert('An error occurred while fetching the courses.');
-            }
+                coursesContainer.appendChild(courseElement);
+            });
+        } else {
+            document.getElementById('courses').innerHTML = '<p>No courses available.</p>';
         }
-
-        function enrollCourse(courseId, courseName) {
-    // Store course details locally (optional)
-    localStorage.setItem('courseId', courseId);
-    localStorage.setItem('courseName', courseName);
-
-    // Redirect to the materials page with the course ID
-    window.location.href = `/course-materials.html?courseId=${courseId}`;
+    } catch (error) {
+        console.error('Error fetching courses:', error);
+        alert('An error occurred while fetching the courses.');
+    }
 }
+
+function viewMaterials(courseId) {
+    window.location.href = `course-materials.html?courseId=${courseId}`;
+}
+
+
+
+
+
+
+async function enrollCourse(courseId, courseName) {
+    try {
+        // Send the request to enroll in the course
+        const response = await fetch('/enroll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseId })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            // Successfully enrolled, update the UI
+            alert(`Successfully enrolled in ${courseName}`);
+
+            // Get the button for the course
+            const enrollButton = document.getElementById(`enroll-btn-${courseId}`);
+            enrollButton.textContent = 'Enrolled';
+            enrollButton.disabled = true;
+
+            // Create the 'View Material' button
+            const viewMaterialButton = document.createElement('button');
+            viewMaterialButton.textContent = 'View Material';
+            viewMaterialButton.onclick = () => window.location.href = `course-materials.html?courseId=${courseId}`;
+
+            // Insert the View Material button next to the enroll button
+            const courseItem = enrollButton.parentElement;
+            courseItem.appendChild(viewMaterialButton);
+
+            // Fetch updated courses (optional: to get the most recent data)
+            fetchCourses();
+        } else {
+            alert(result.message || 'Enrollment failed');
+        }
+    } catch (error) {
+        console.error('Error enrolling in course:', error);
+        alert('An error occurred while enrolling in the course.');
+    }
+}
+
+
+
+
+
 
 
         // Function to display the student's username
