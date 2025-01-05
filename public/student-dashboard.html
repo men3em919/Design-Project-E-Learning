@@ -73,14 +73,45 @@
     <div class="header">
         <h1>Welcome, <span id="student-username">Student</span>!</h1>
     </div>
-
+    <div class="progress-list">
+        <h2>Course Progress</h2>
+        <div id="course-progress">
+            <!-- Progress bars for courses will be populated here -->
+        </div>
+    </div>
+    <style>
+        .progress-list {
+            padding: 20px;
+            margin: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+    
+        .progress-bar {
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+    
+        .progress {
+            height: 20px;
+            background-color: #4caf50;
+            text-align: center;
+            color: white;
+            line-height: 20px;
+        }
+    </style>
     <div class="course-list">
         <h2>Available Courses</h2>
         <div id="courses">
             <!-- List of courses will be populated here -->
         </div>
     </div>
-
+    
+        
     <div class="footer">
         <p>© 2024 E-Learning Platform. Student Dashboard.</p>
     </div>
@@ -191,6 +222,37 @@ async function enrollCourse(courseId, courseName) {
         // Call the functions on page load
         displayUsername();
         fetchCourses();
+
+
+        async function fetchProgress() {
+    try {
+        const response = await fetch('/progress'); // Fetch progress from the server
+        const data = await response.json();
+
+        if (response.ok && data.length > 0) {
+            const progressContainer = document.getElementById('course-progress');
+            progressContainer.innerHTML = ''; // Clear previous content
+
+            data.forEach(course => {
+                const progressElement = document.createElement('div');
+                progressElement.innerHTML = `
+                    <span><strong>${course.course_name}</strong></span>
+                    <div class="progress-bar">
+                        <div class="progress" style="width: ${course.progress_percentage}%;">
+                            ${course.progress_percentage}%
+                        </div>
+                    </div>
+                `;
+                progressContainer.appendChild(progressElement);
+            });
+        } else {
+            document.getElementById('course-progress').innerHTML = '<p>No progress available.</p>';
+        }
+    } catch (error) {
+        console.error('Error fetching progress:', error);
+    }
+}
+
     </script>
 
 </body>
