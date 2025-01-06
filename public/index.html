@@ -118,36 +118,39 @@
         const loginForm = document.getElementById('login-form');
 
         loginForm.addEventListener('submit', async (event) => {
-            event.preventDefault(); // Prevent the default form submission
+    event.preventDefault(); // Prevent the default form submission
 
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
 
-            try {
-                const response = await fetch('/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-
-                const result = await response.json();
-
-                if (response.ok && result.success) {
-                    if (result.role === 'Admin') {
-                        // Redirect to admin dashboard
-                        window.location.href = '/admin.html'; // Redirect to admin page
-                    } else if (result.role === 'Student') {
-                        // Redirect to student dashboard
-                        window.location.href = '/student-dashboard.html'; // Redirect to student page
-                    }
-                } else {
-                    alert(result.message || 'Login failed');
-                }
-            } catch (error) {
-                console.error('Error during login:', error);
-                alert('An error occurred while logging in.');
-            }
+    try {
+        const response = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
         });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            // Store userId in localStorage
+            localStorage.setItem('userId', result.userId);
+
+            if (result.role === 'Admin') {
+                // Redirect to admin dashboard
+                window.location.href = '/admin.html'; // Redirect to admin page
+            } else if (result.role === 'Student') {
+                // Redirect to student dashboard
+                window.location.href = '/student-dashboard.html'; // Redirect to student page
+            }
+        } else {
+            alert(result.message || 'Login failed');
+        }
+    } catch (error) {
+        console.error('Error during login:', error);
+        alert('An error occurred while logging in.');
+    }
+});
     </script>
 
 </body>
