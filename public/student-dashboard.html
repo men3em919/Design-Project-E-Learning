@@ -226,7 +226,7 @@ async function enrollCourse(courseId, courseName) {
 
         async function fetchProgress() {
     try {
-        const response = await fetch('/progress'); // Fetch progress from the server
+        const response = await fetch(`/progress?userId=${localStorage.getItem('userId')}`);
         const data = await response.json();
 
         if (response.ok && data.length > 0) {
@@ -238,8 +238,8 @@ async function enrollCourse(courseId, courseName) {
                 progressElement.innerHTML = `
                     <span><strong>${course.course_name}</strong></span>
                     <div class="progress-bar">
-                        <div class="progress" style="width: ${course.progress_percentage}%;">
-                            ${course.progress_percentage}%
+                        <div class="progress" style="width: ${course.progress_percentage}%; background-color: ${course.progress_percentage >= 100 ? '#28a745' : '#ffc107'};">
+                            ${course.progress_percentage.toFixed(2)}%
                         </div>
                     </div>
                 `;
@@ -252,6 +252,28 @@ async function enrollCourse(courseId, courseName) {
         console.error('Error fetching progress:', error);
     }
 }
+// Login function on the front-end (assuming you are using fetch for login)
+async function loginUser() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    const response = await fetch('/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+    });
+
+    const data = await response.json();
+    if (data.success) {
+        localStorage.setItem('userId', data.userId); // Store userId in localStorage
+        window.location.href = data.redirectUrl; // Redirect to the appropriate page
+    } else {
+        alert(data.message);
+    }
+}
+
 
     </script>
 

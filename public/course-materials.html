@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Course Materials</title>
     <style>
+        /* Resetting default browser styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #1e3c72, #2a5298);
@@ -13,49 +20,95 @@
             padding: 0;
         }
 
+        /* Header */
         .header {
             background-color: #000;
-            color: #fff;
+            color: white;
             padding: 20px;
             text-align: center;
             font-size: 24px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
 
-        .materials-list {
-            padding: 20px;
-            margin: 20px;
+        .header h1 {
+            font-size: 2.5em;
+        }
+
+        /* Course Info Section */
+        .course-info {
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 900px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .course-info h2 {
+            font-size: 1.8em;
+            color: #fff;
+        }
+
+        .course-info p {
+            font-size: 1.2em;
+            color: #ddd;
+        }
+
+        /* Materials List Section */
+        .materials-list {
+            margin: 20px auto;
+            max-width: 900px;
+            padding: 20px;
+        }
+
+        .materials-list h2 {
+            font-size: 1.8em;
+            color: #fff;
+            margin-bottom: 15px;
         }
 
         .material-item {
             background: rgba(255, 255, 255, 0.2);
-            margin-bottom: 10px;
+            margin: 10px 0;
             padding: 15px;
             border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .footer {
-            text-align: center;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 14px;
-            margin-top: 20px;
+        .material-item span {
+            font-size: 1.1em;
+            color: #fff;
         }
 
         .material-item a {
-            color: #007bff;
+            color: #4CAF50;
             text-decoration: none;
+            font-weight: bold;
+            padding: 5px 10px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .material-item a:hover {
-            text-decoration: underline;
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        /* Footer */
+        .footer {
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .footer p {
+            font-size: 1em;
         }
     </style>
 </head>
@@ -84,11 +137,12 @@
 
     <script>
         const courseId = new URLSearchParams(window.location.search).get('courseId'); // Get courseId from URL
+        const userId = localStorage.getItem('userId'); // Get userId from localStorage (assumed to be saved during login)
 
         // Function to fetch and display course info
         async function fetchCourseInfo() {
             try {
-                const response = await fetch(`/course/${courseId}`); // Adjust URL if needed
+                const response = await fetch(`/course/${courseId}`);
                 const data = await response.json();
 
                 if (response.ok && data) {
@@ -103,48 +157,74 @@
         }
 
         // Function to fetch and display materials
-        async function fetchCourseInfo() {
-    try {
-        const response = await fetch(`/course/${courseId}`);
-        const data = await response.json();
+        async function fetchMaterials() {
+            try {
+                const response = await fetch(`/materials/${courseId}`);
+                const data = await response.json();
 
-        if (response.ok && data) {
-            document.getElementById('course-name').innerText = data.course_name;
-            document.getElementById('course-description').innerText = data.course_description;
+                if (response.ok && data.length > 0) {
+                    const materialsContainer = document.getElementById('materials');
+                    materialsContainer.innerHTML = ''; // Clear previous content
+
+                    data.forEach(material => {
+                        const materialElement = document.createElement('div');
+                        materialElement.classList.add('material-item');
+                        materialElement.innerHTML = `
+                            <span><strong>${material.material_name}</strong> (${material.material_type})</span>
+                            <a href="${material.material_link}" target="_blank" onclick="updateProgress(${userId}, ${courseId}, ${material.material_id}, '${material.material_type}')">View Material</a>
+                        `;
+                        materialsContainer.appendChild(materialElement);
+                    });
+                } else {
+                    document.getElementById('materials').innerHTML = '<p>No materials available for this course.</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching materials:', error);
+                alert('An error occurred while fetching materials.');
+            }
+        }
+
+        // Function to update progress when material is viewed
+        // Function to update progress when material is viewed
+async function updateProgress(userId, courseId, materialId, materialType) {
+    let progressPercentage = 0;
+
+    // Assume that if it's the first time viewing, we start from 10% or some other logic
+    // You can modify this depending on your requirements.
+    const materialProgress = localStorage.getItem(`progress_${userId}_${materialId}`);
+    if (materialProgress) {
+        progressPercentage = parseInt(materialProgress) + 10; // Increment by 10 for simplicity
+    }
+
+    // Store progress to prevent re-updating the same material multiple times
+    localStorage.setItem(`progress_${userId}_${materialId}`, progressPercentage);
+
+    try {
+        const response = await fetch('/update-progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId,
+                courseId,
+                materialId,
+                progressPercentage
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            console.log('Progress updated successfully!');
         } else {
-            alert('Course details could not be retrieved.');
+            console.log('Failed to update progress:', result.error); // Log the error message
+            alert('Failed to update progress: ' + result.error);
         }
     } catch (error) {
-        console.error('Error fetching course info:', error);
+        console.error('Error updating progress:', error);
+        alert('An error occurred while updating progress.');
     }
 }
 
-async function fetchMaterials() {
-    try {
-        const response = await fetch(`/materials/${courseId}`);
-        const data = await response.json();
-
-        if (response.ok && data.length > 0) {
-            const materialsContainer = document.getElementById('materials');
-            materialsContainer.innerHTML = ''; // Clear previous content
-
-            data.forEach(material => {
-                const materialElement = document.createElement('div');
-                materialElement.classList.add('material-item');
-                materialElement.innerHTML = `
-                    <span><strong>${material.material_name}</strong> (${material.material_type})</span>
-                    <a href="${material.material_link}" target="_blank">View Material</a>
-                `;
-                materialsContainer.appendChild(materialElement);
-            });
-        } else {
-            document.getElementById('materials').innerHTML = '<p>No materials available for this course.</p>';
-        }
-    } catch (error) {
-        console.error('Error fetching materials:', error);
-        alert('An error occurred while fetching materials.');
-    }
-}
 
 
         // Call fetch functions on page load

@@ -5,6 +5,7 @@ const pool = require('./db'); // Database connection
 
 const app = express();
 const port = 3000;
+const { Pool } = require('pg');
 
 // Middleware
 app.use(bodyParser.json());
@@ -63,6 +64,8 @@ app.post('/login', async (req, res) => {
     } catch (error) {
         console.error('Error during login:', error);
         res.status(500).json({ success: false, message: 'An error occurred during login.' });
+        req.session.userId = user.user_id; // Store userId in session
+
     }
 });
 
@@ -117,6 +120,67 @@ app.get('/materials/:courseId', async (req, res) => {
     } catch (error) {
         console.error('Error fetching materials:', error);
         res.status(500).json({ message: "An error occurred while fetching materials." });
+    }
+});
+// Update progress when a material is viewed
+// Assuming you're using Express
+// Update progress when a material is viewed
+// In your progress update function
+app.post('/update-progress', async (req, res) => {
+  const { user_id, course_id, material_id, progress_percentage } = req.body;
+
+  // Check if any required fields are missing
+  if (!user_id || !course_id || !material_id || !progress_percentage) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  try {
+    // Log the input to ensure it's being passed correctly
+    console.log('Received update progress request with:', req.body);
+    const userId = req.session.userId; // Get the user ID from the session
+
+    // Update the user_progress table
+    const result = await pool.query(
+      `INSERT INTO user_progress (user_id, course_id, material_id, progress_percentage, last_accessed) 
+       VALUES ($1, $2, $3, $4, NOW()) 
+       ON CONFLICT (user_id, course_id, material_id) 
+       DO UPDATE SET progress_percentage = EXCLUDED.progress_percentage, last_accessed = NOW()`,
+      [user_id, course_id, material_id, progress_percentage]
+    );
+
+    res.status(200).json({ message: 'Progress updated successfully' });
+  } catch (err) {
+    // Log the full error to help debug the issue
+    console.error('Error updating progress:', err);
+    res.status(500).json({ message: 'Error updating progress', error: err.message });
+  }
+});
+
+
+
+
+
+
+
+// Fetch progress for all courses
+app.get('/progress', async (req, res) => {
+    const userId = req.query.userId;
+
+    try {
+        const progressData = await db.query(
+            `SELECT c.course_id, c.course_name, 
+                COALESCE(SUM(up.progress_percentage), 0) AS progress_percentage
+             FROM courses c
+             LEFT JOIN user_progress up ON c.course_id = up.course_id AND up.user_id = $1
+             GROUP BY c.course_id
+             ORDER BY c.course_name`,
+            [userId]
+        );
+
+        res.json(progressData.rows);
+    } catch (err) {
+        console.error('Error fetching progress:', err);
+        res.status(500).json({ success: false, message: 'Error fetching progress' });
     }
 });
 

@@ -8,5 +8,7 @@ const pool = new Pool({
     password: 'postgres', // Replace with your password
     port: 5432, // Default PostgreSQL port
 });
-
+const db = {
+    query: (text, params) => pool.query(text, params),
+  };
 module.exports = pool;
