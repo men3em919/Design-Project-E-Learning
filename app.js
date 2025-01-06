@@ -70,7 +70,6 @@ app.post('/login', async (req, res) => {
 });
 
 // Endpoint to get courses for students
-// Endpoint to get courses for students
 app.get('/courses', async (req, res) => {
     const userId = req.session.userId; // Get the user ID from the session
 
@@ -231,10 +230,6 @@ app.post('/enroll', async (req, res) => {
 
 
 
-
-
-
-
 // Register Endpoint
 app.post('/register', async (req, res) => {
     const { username, name, email, password, role } = req.body;
@@ -255,7 +250,6 @@ app.post('/register', async (req, res) => {
     }
 });
 
-// Get All Users Endpoint
 // Get All Users Endpoint
 app.get('/users', async (req, res) => {
     try {
