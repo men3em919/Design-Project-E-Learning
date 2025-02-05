@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assign Teaching Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: auto;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        select, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Assign Teaching Assistant</h2>
+        <label for="course">Select Course:</label>
+        <select id="course" required></select>
+
+        <label for="ta">Select Teaching Assistant:</label>
+        <select id="ta" required></select>
+
+        <button onclick="assignTA()">Assign TA</button>
+    </div>
+
+    <script>
+       document.addEventListener("DOMContentLoaded", async () => {
+    const userId = localStorage.getItem("userId"); // Get logged-in doctor ID
+
+    if (!userId) {
+        alert("You are not logged in!");
+        window.location.href = "/index.html";
+        return;
+    }
+
+    try {
+        // Fetch courses assigned to the logged-in doctor
+        const coursesResponse = await fetch(`/doctor-courses?user_id=${userId}`);
+        const courses = await coursesResponse.json();
+
+        if (!courses.length) {
+            alert("No courses assigned to you.");
+            return;
+        }
+
+        const courseDropdown = document.getElementById("course");
+        courses.forEach(course => {
+            const option = document.createElement("option");
+            option.value = course.course_id;
+            option.textContent = course.course_name;
+            courseDropdown.appendChild(option);
+        });
+
+        // Fetch available Teaching Assistants
+        const taResponse = await fetch("/get-teaching-assistants");
+        const tas = await taResponse.json();
+
+        if (!tas.length) {
+            alert("No Teaching Assistants available.");
+            return;
+        }
+
+        const taDropdown = document.getElementById("ta");
+        tas.forEach(ta => {
+            const option = document.createElement("option");
+            option.value = ta.user_id;
+            option.textContent = ta.name;
+            taDropdown.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error("Error loading data:", error);
+        alert("Failed to load courses or TAs.");
+    }
+});
+
+
+        async function assignTA() {
+            const course_id = document.getElementById("course").value;
+            const ta_id = document.getElementById("ta").value;
+
+            try {
+                const response = await fetch("/assign-ta", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ course_id, ta_id })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert("TA assigned successfully!");
+                } else {
+                    alert(result.message || "Failed to assign TA.");
+                }
+            } catch (error) {
+                console.error("Error assigning TA:", error);
+                alert("An error occurred while assigning the TA.");
+            }
+        }
+    </script>
+
+</body>
+</html>

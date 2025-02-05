@@ -11,7 +11,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files
 const session = require('express-session');
-
+app.use('/lang', express.static(path.join(__dirname, 'lang')));
 app.use(session({
     secret: 'your-secret-key', // Replace with your own secret
     resave: false,
@@ -54,6 +54,8 @@ app.post('/login', async (req, res) => {
                 res.json({ success: true, role: 'Admin', redirectUrl: '/admin', userId: user.user_id }); // Include userId in response
             } else if (user.role === 'Student') {
                 res.json({ success: true, role: 'Student', redirectUrl: `/student-dashboard/${username}`, userId: user.user_id }); // Include userId in response
+            }else if (user.role === 'Doctor') {
+                res.json({ success: true, role: 'Doctor', userId: user.user_id });
             } else {
                 res.status(400).json({ success: false, message: 'Unknown user role.' });
             }
@@ -118,7 +120,39 @@ app.get('/materials/:courseId', async (req, res) => {
         res.status(500).json({ message: "An error occurred while fetching materials." });
     }
 });
+// Fetch courses assigned to the logged-in doctor
+app.get('/doctor-courses', async (req, res) => {
+    const { user_id } = req.query; // Ensure that user_id is received correctly
 
+    if (!user_id) {
+        return res.status(400).json({ success: false, message: "User ID is required." });
+    }
+
+    try {
+        const result = await pool.query(
+            "SELECT course_id, course_name FROM courses WHERE user_id = $1",
+            [user_id] // Change from doctor -> user_id
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "You are not assigned to any courses." });
+        }
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Error fetching doctor courses:", error);
+        res.status(500).json({ success: false, message: "Server error fetching courses." });
+    }
+});
+app.get("/get-teaching-assistants", async (req, res) => {
+    try {
+        const result = await pool.query("SELECT user_id, name FROM users WHERE role = 'Teaching Assistant'");
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Error fetching TAs:", error);
+        res.status(500).json({ message: "Failed to fetch teaching assistants." });
+    }
+});
 // Enroll in a course
 // Enroll in a course
 app.post('/enroll', async (req, res) => {
@@ -196,6 +230,50 @@ app.get('/users', async (req, res) => {
         res.status(500).json({ success: false, message: 'An error occurred while fetching users.' });
     }
 });
+app.post('/add-material', async (req, res) => {
+    const { course_id, material_type, material_name, material_link } = req.body;
+
+    try {
+        await pool.query(
+            'INSERT INTO materials (course_id, material_type, material_name, material_link) VALUES ($1, $2, $3, $4)',
+            [course_id, material_type, material_name, material_link]
+        );
+        res.status(201).json({ success: true, message: 'Material added successfully' });
+    } catch (error) {
+        console.error('Error adding material:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+app.post('/assign-ta', async (req, res) => {
+    const { course_id, ta_user_id, doctor_id } = req.body; // doctor_id is the logged-in doctor's user_id
+
+    try {
+        // Check if the selected user is a Teaching Assistant
+        const taCheck = await pool.query('SELECT * FROM users WHERE user_id = $1 AND role = $2', [ta_user_id, 'Teaching Assistant']);
+
+        if (taCheck.rows.length === 0) {
+            return res.status(400).json({ success: false, message: 'User is not a valid Teaching Assistant' });
+        }
+
+        // Ensure the course belongs to the logged-in Doctor
+        const courseCheck = await pool.query('SELECT * FROM courses WHERE course_id = $1 AND user_id = $2', [course_id, doctor_id]);
+
+        if (courseCheck.rows.length === 0) {
+            return res.status(403).json({ success: false, message: 'Unauthorized: You can only assign a TA to your own course' });
+        }
+
+        // Assign the TA to the course
+        await pool.query('UPDATE courses SET ta_id = $1 WHERE course_id = $2', [ta_user_id, course_id]);
+
+        res.status(200).json({ success: true, message: 'Teaching Assistant assigned successfully' });
+
+    } catch (error) {
+        console.error('Error assigning TA:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+
 
 // Update User Role Endpoint (includes blocking a user)
 app.put('/users/:id/role', async (req, res) => {
@@ -260,7 +338,7 @@ app.post('/books', async (req, res) => {
     }
 });
 app.post('/update-progress', async (req, res) => {
-    const { userId, courseId, materialId, progressPercentage } = req.body;
+    const { userId, courseId, materialId } = req.body;
 
     try {
         // Check if the user is enrolled in the course
@@ -273,18 +351,81 @@ app.post('/update-progress', async (req, res) => {
             return res.status(403).json({ success: false, error: 'User is not enrolled in this course.' });
         }
 
-        // Update progress in the database
-        await pool.query(
-            'INSERT INTO user_progress (user_id, course_id, material_id, progress_percentage) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, course_id, material_id) DO UPDATE SET progress_percentage = $4',
-            [userId, courseId, materialId, progressPercentage]
+        // Check how many materials exist for this course
+        const materialCountResult = await pool.query(
+            'SELECT COUNT(*) FROM materials WHERE course_id = $1',
+            [courseId]
         );
 
-        res.json({ success: true });
+        const totalMaterials = parseInt(materialCountResult.rows[0].count);
+        if (totalMaterials === 0) {
+            return res.status(400).json({ success: false, error: 'No materials found for this course.' });
+        }
+
+        // Each material contributes a fixed percentage to total progress
+        const materialPercentage = 100 / totalMaterials;
+
+        // Check if this material has already been accessed by the user
+        const progressCheck = await pool.query(
+            'SELECT * FROM user_progress WHERE user_id = $1 AND course_id = $2 AND material_id = $3',
+            [userId, courseId, materialId]
+        );
+
+        if (progressCheck.rows.length > 0) {
+            return res.json({ success: true, message: 'Material already accessed. Progress unchanged.' });
+        }
+
+        // Insert new progress entry
+        await pool.query(
+            'INSERT INTO user_progress (user_id, course_id, material_id, progress_percentage) VALUES ($1, $2, $3, $4)',
+            [userId, courseId, materialId, materialPercentage]
+        );
+
+        // Calculate the total course progress
+        const progressResult = await pool.query(
+            'SELECT SUM(progress_percentage) AS course_progress FROM user_progress WHERE user_id = $1 AND course_id = $2',
+            [userId, courseId]
+        );
+
+        const courseProgress = Math.min(100, parseFloat(progressResult.rows[0].course_progress));
+
+        // Update the total course progress in user_progress (if you store it separately)
+        await pool.query(
+            'UPDATE user_progress SET progress_percentage = $1 WHERE user_id = $2 AND course_id = $3 AND material_id IS NULL',
+            [courseProgress, userId, courseId]
+        );
+
+        res.json({ success: true, courseProgress });
     } catch (error) {
         console.error('Error updating progress:', error);
         res.status(500).json({ success: false, error: 'An error occurred while updating progress.' });
     }
 });
+
+
+app.get('/get-progress/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // Fetch total progress for all courses the student is enrolled in
+        const progressResult = await pool.query(`
+            SELECT c.course_id, c.course_name, 
+                   COALESCE(SUM(up.progress_percentage), 0) AS total_progress
+            FROM courses c
+            LEFT JOIN user_progress up 
+                   ON c.course_id = up.course_id AND up.user_id = $1
+            GROUP BY c.course_id, c.course_name
+        `, [userId]);
+
+        res.json(progressResult.rows); // Send the result as JSON
+    } catch (error) {
+        console.error('Error fetching progress:', error);
+        res.status(500).json({ success: false, message: 'An error occurred while fetching progress.' });
+    }
+});
+
+
+
 
 // Start Server
 app.listen(port, () => {

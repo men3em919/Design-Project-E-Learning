@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -68,6 +69,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <div class="header">
@@ -79,29 +81,63 @@
             <!-- Progress bars for courses will be populated here -->
         </div>
     </div>
+    <div class="progress-list">
+        <h2>Your Course Progress</h2>
+        <div id="progress-container"></div>
+    </div>
+
     <style>
         .progress-list {
             padding: 20px;
-            margin: 20px;
+            margin: 20px auto;
+            max-width: 800px;
+            /* Centers the progress list */
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            text-align: center;
         }
-    
+
+        .progress-list h2 {
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .course-progress-item {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            transition: 0.3s;
+        }
+
+        .course-progress-item:hover {
+            transform: scale(1.02);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
         .progress-bar {
             width: 100%;
-            background-color: rgba(255, 255, 255, 0.2);
-            border-radius: 5px;
+            height: 25px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
             overflow: hidden;
-            margin: 10px 0;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
         }
-    
+
         .progress {
-            height: 20px;
-            background-color: #4caf50;
+            height: 100%;
+            background: linear-gradient(to right, #4caf50, #81c784);
             text-align: center;
             color: white;
-            line-height: 20px;
+            font-weight: bold;
+            line-height: 25px;
+            transition: width 0.5s ease-in-out;
+            border-radius: 10px;
         }
     </style>
     <div class="course-list">
@@ -110,8 +146,8 @@
             <!-- List of courses will be populated here -->
         </div>
     </div>
-    
-        
+
+
     <div class="footer">
         <p>© 2024 E-Learning Platform. Student Dashboard.</p>
     </div>
@@ -119,43 +155,76 @@
     <script>
         // Function to fetch and display courses
         async function fetchCourses() {
-    try {
-        const response = await fetch('/courses'); // Fetch courses from the server
-        const data = await response.json();
+            try {
+                const response = await fetch('/courses'); // Fetch courses from the server
+                const data = await response.json();
 
-        if (response.ok && data.length > 0) {
-            const coursesContainer = document.getElementById('courses');
-            coursesContainer.innerHTML = ''; // Clear previous content
+                if (response.ok && data.length > 0) {
+                    const coursesContainer = document.getElementById('courses');
+                    coursesContainer.innerHTML = ''; // Clear previous content
 
-            data.forEach(course => {
-                const courseElement = document.createElement('div');
-                courseElement.classList.add('course-item');
-                courseElement.innerHTML = `
-                    <span><strong>${course.course_name}</strong> - ${course.course_description}</span>
-                    <div>
-                        <button 
-                            id="enroll-btn-${course.course_id}" 
-                            onclick="enrollCourse(${course.course_id}, '${course.course_name}')" 
-                            ${course.isEnrolled ? 'disabled' : ''}>
-                            ${course.isEnrolled ? 'Enrolled' : 'Enroll'}
-                        </button>
-                        ${course.isEnrolled ? 
-                            `<button onclick="viewMaterials(${course.course_id})">View Material</button>` : 
-                            ''}
-                    </div>
-                `;
+                    data.forEach(course => {
+    const courseElement = document.createElement('div');
+    courseElement.classList.add('course-item');
+    courseElement.innerHTML = `
+        <span><strong>${course.course_name}</strong> - ${course.course_description}</span>
+        <div>
+            <button 
+                id="enroll-btn-${course.course_id}" 
+                onclick="enrollCourse(${course.course_id}, '${course.course_name}')"
+                ${course.isEnrolled ? 'disabled' : ''}>
+                ${course.isEnrolled ? 'Enrolled' : 'Enroll'}
+            </button>
+            ${course.isEnrolled ? 
+                `<button onclick="viewMaterials(${course.course_id})">View Material</button>` : 
+                ''}
+        </div>
+    `;
 
-                coursesContainer.appendChild(courseElement);
-            });
-        } else {
-            document.getElementById('courses').innerHTML = '<p>No courses available.</p>';
+    coursesContainer.appendChild(courseElement);
+});
+
+                } else {
+                    document.getElementById('courses').innerHTML = '<p>No courses available.</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching courses:', error);
+                alert('An error occurred while fetching the courses.');
+            }
         }
-    } catch (error) {
-        console.error('Error fetching courses:', error);
-        alert('An error occurred while fetching the courses.');
-    }
-}
 
+        document.addEventListener("DOMContentLoaded", function () {
+            const userId = 1; // Change this to get the logged-in user's ID dynamically
+
+            fetch(`/get-progress/${ userId }`)
+                .then(response => response.json())
+                .then(data => {
+                    const progressContainer = document.getElementById("progress-container");
+                    progressContainer.innerHTML = ""; // Clear existing content
+
+                    if (data.length === 0) {
+                        progressContainer.innerHTML = "<p>No courses found.</p>";
+                        return;
+                    }
+
+                    data.forEach(course => {
+                        const progressBar = `
+    <div>
+        <h3>${course.course_name}</h3>
+        <div style="background: #ddd; width: 100%; height: 20px; border-radius: 5px;">
+            <div style="width: ${course.total_progress}%; background: #4caf50; height: 100%; text-align: center; color: white; font-weight: bold;">
+                ${Math.round(course.total_progress)}%
+            </div>
+        </div>
+    </div>
+    <br>
+`;
+
+                progressContainer.innerHTML += progressBar;
+            });
+        })
+        .catch(error => console.error("Error fetching progress:", error));
+});
 function viewMaterials(courseId) {
     window.location.href = `course-materials.html?courseId=${courseId}`;
 }
@@ -226,7 +295,8 @@ async function enrollCourse(courseId, courseName) {
 
         async function fetchProgress() {
     try {
-        const response = await fetch(`/progress?userId=${localStorage.getItem('userId')}`);
+        const userId = localStorage.getItem('userId');
+        const response = await fetch(`/progress?userId=${userId}`);
         const data = await response.json();
 
         if (response.ok && data.length > 0) {
@@ -234,17 +304,21 @@ async function enrollCourse(courseId, courseName) {
             progressContainer.innerHTML = ''; // Clear previous content
 
             data.forEach(course => {
-                const progressElement = document.createElement('div');
-                progressElement.innerHTML = `
-                    <span><strong>${course.course_name}</strong></span>
-                    <div class="progress-bar">
-                        <div class="progress" style="width: ${course.progress_percentage}%; background-color: ${course.progress_percentage >= 100 ? '#28a745' : '#ffc107'};">
-                            ${course.progress_percentage.toFixed(2)}%
-                        </div>
-                    </div>
-                `;
-                progressContainer.appendChild(progressElement);
-            });
+    const progressElement = document.createElement('div');
+    progressElement.classList.add('course-progress-item');
+    progressElement.innerHTML = `
+        <div>
+            <span><strong>${course.course_name}</strong></span>
+            <div class="progress-bar">
+                <div class="progress" style="width: ${course.progress_percentage}%; background-color: ${course.progress_percentage >= 100 ? '#28a745' : '#ffc107'};">
+                    ${course.progress_percentage.toFixed(2)}%
+                </div>
+            </div>
+        </div>
+    `;
+    progressContainer.appendChild(progressElement);
+});
+
         } else {
             document.getElementById('course-progress').innerHTML = '<p>No progress available.</p>';
         }
@@ -252,6 +326,7 @@ async function enrollCourse(courseId, courseName) {
         console.error('Error fetching progress:', error);
     }
 }
+
 // Login function on the front-end (assuming you are using fetch for login)
 async function loginUser() {
     const username = document.getElementById('username').value;
@@ -278,4 +353,5 @@ async function loginUser() {
     </script>
 
 </body>
+
 </html>

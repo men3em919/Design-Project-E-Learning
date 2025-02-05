@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Materials</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: #fff;
+        }
+
+        .header {
+            background-color: #000;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-container {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-container h2 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .form-group select option {
+            background: #1e3c72;
+            color: #fff;
+        }
+
+        .form-group button {
+            width: 100%;
+            padding: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .form-group button:hover {
+            background: #0056b3;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Add Course Materials</h1>
+    </div>
+
+    <div class="form-container">
+        <h2>Select Course & Add Material</h2>
+        <form id="add-material-form">
+            <div class="form-group">
+                <label for="course">Select Course:</label>
+                <select id="course" name="course" required>
+                    <!-- Courses will be populated dynamically -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="material-type">Material Type:</label>
+                <select id="material-type" name="material_type" required>
+                    <option value="lecture">Lecture</option>
+                    <option value="sheet">Sheet</option>
+                    <option value="sheet solution">Sheet Solution</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="material-name">Material Name:</label>
+                <input type="text" id="material-name" name="material_name" required>
+            </div>
+            <div class="form-group">
+                <label for="material-link">Material Link:</label>
+                <input type="url" id="material-link" name="material_link" required>
+            </div>
+            <div class="form-group">
+                <button type="submit">Add Material</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="footer">
+        <p>© 2024 E-Learning Platform. Add Materials.</p>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const userId = localStorage.getItem("userId");
+
+            if (!userId) {
+                alert("You are not logged in!");
+                window.location.href = "/index.html";
+                return;
+            }
+
+            try {
+                // Fetch courses assigned to the logged-in doctor
+                const response = await fetch(`/doctor-courses?user_id=${userId}`);
+                const courses = await response.json();
+
+                if (!courses.length) {
+                    alert("You have no assigned courses.");
+                    return;
+                }
+
+                const courseDropdown = document.getElementById("course");
+                courses.forEach(course => {
+                    const option = document.createElement("option");
+                    option.value = course.course_id;
+                    option.textContent = course.course_name;
+                    courseDropdown.appendChild(option);
+                });
+            } catch (error) {
+                console.error("Error fetching courses:", error);
+                alert("Failed to load courses.");
+            }
+        });
+
+        document.getElementById("add-material-form").addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const course_id = document.getElementById("course").value;
+            const material_type = document.getElementById("material-type").value;
+            const material_name = document.getElementById("material-name").value;
+            const material_link = document.getElementById("material-link").value;
+
+            try {
+                const response = await fetch("/add-material", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ course_id, material_type, material_name, material_link })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert("Material added successfully!");
+                    document.getElementById("add-material-form").reset();
+                } else {
+                    alert(result.message || "Failed to add material.");
+                }
+            } catch (error) {
+                console.error("Error adding material:", error);
+                alert("An error occurred while adding the material.");
+            }
+        });
+    </script>
+
+</body>
+</html>

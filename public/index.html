@@ -142,7 +142,9 @@
             } else if (result.role === 'Student') {
                 // Redirect to student dashboard
                 window.location.href = '/student-dashboard.html'; // Redirect to student page
-            }
+            } else if (result.role === 'Doctor') {
+        window.location.href = '/doctor-dashboard.html'; // Redirect to doctor page
+    }
         } else {
             alert(result.message || 'Login failed');
         }
