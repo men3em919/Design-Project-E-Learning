@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -75,6 +78,16 @@
     <div class="header">
         <h1>Welcome, <span id="student-username">Student</span>!</h1>
     </div>
+    <div id="calendar-container">
+        <div id="calendar"></div>
+    </div>
+    
+
+    <div class="upcoming-deadlines">
+        <h2>Upcoming Deadlines</h2>
+        <ul id="deadlines-list"></ul>
+    </div>
+    
     <div class="progress-list">
         <h2>Course Progress</h2>
         <div id="course-progress">
@@ -87,6 +100,69 @@
     </div>
 
     <style>
+        .upcoming-deadlines {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 300px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.upcoming-deadlines h2 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.upcoming-deadlines ul {
+    list-style: none;
+    padding: 0;
+}
+
+.upcoming-deadlines li {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 10px;
+    margin-bottom: 5px;
+    border-radius: 5px;
+    font-size: 14px;
+}
+#calendar-container {
+    position: absolute;
+    top: 20px;  /* Adjust the distance from the top */
+    left: 20px; /* Adjust the distance from the left */
+    width: 300px; /* Smaller width */
+    height: 300px; /* Smaller height */
+    overflow: hidden; /* Prevents overflow */
+}
+
+#calendar {
+    width: 100%;
+    height: 100%;
+    font-size: 12px; /* Makes text smaller */
+}
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 5px rgba(255, 87, 51, 0.5); }
+    50% { transform: scale(1.08); box-shadow: 0 0 15px rgba(255, 87, 51, 0.9); }
+    100% { transform: scale(1); box-shadow: 0 0 5px rgba(255, 87, 51, 0.5); }
+}
+
+.fc-daygrid-event {
+    font-weight: bold;
+    border-radius: 10px;
+    padding: 8px;
+    transition: all 0.3s ease-in-out;
+}
+
+.fc-daygrid-event:hover {
+    background-color: #ff2e00 !important;  /* Bright red on hover */
+    transform: scale(1.1); /* Slight zoom-in */
+}
+
+
+
         .progress-list {
             padding: 20px;
             margin: 20px auto;
@@ -153,7 +229,45 @@
     </div>
 
     <script>
-        // Function to fetch and display courses
+ document.addEventListener('DOMContentLoaded', function () {
+    var calendarEl = document.getElementById('calendar');
+    var userId = localStorage.getItem('userId'); // Get the logged-in user's ID
+
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        events: async function (fetchInfo, successCallback, failureCallback) {
+            try {
+                const response = await fetch(`/get-deadlines/${userId}`); // Fetch with userId
+                const events = await response.json();
+                successCallback(events);
+            } catch (error) {
+                console.error('Error fetching deadlines:', error);
+                failureCallback(error);
+            }
+        },
+        eventDidMount: function(info) {
+            // Add a tooltip for extra visibility
+            var tooltip = new Tooltip(info.el, {
+                title: info.event.title,
+                placement: 'top',
+                trigger: 'hover',
+                container: 'body'
+            });
+
+            // Add a visual indicator (e.g., blinking effect)
+            info.el.style.animation = "pulse 1.5s infinite";
+        }
+    });
+
+    calendar.render();
+});
+
+
         async function fetchCourses() {
             try {
                 const response = await fetch('/courses'); // Fetch courses from the server
@@ -194,40 +308,43 @@
         }
 
         document.addEventListener("DOMContentLoaded", function () {
-            const userId = 1; // Change this to get the logged-in user's ID dynamically
+    const userId = localStorage.getItem('userId'); // Get user ID from localStorage
 
-            fetch(`/get-progress/${ userId }`)
-                .then(response => response.json())
-                .then(data => {
-                    const progressContainer = document.getElementById("progress-container");
-                    progressContainer.innerHTML = ""; // Clear existing content
+    fetch(`/get-progress/${userId}`) // Fetch progress data from server
+        .then(response => response.json())
+        .then(data => {
+            const progressContainer = document.getElementById("progress-container");
+            progressContainer.innerHTML = ""; // Clear existing content
 
-                    if (data.length === 0) {
-                        progressContainer.innerHTML = "<p>No courses found.</p>";
-                        return;
-                    }
+            if (data.length === 0) {
+                progressContainer.innerHTML = "<p>No courses found.</p>";
+                return;
+            }
 
-                    data.forEach(course => {
-                        const progressBar = `
-    <div>
-        <h3>${course.course_name}</h3>
-        <div style="background: #ddd; width: 100%; height: 20px; border-radius: 5px;">
-            <div style="width: ${course.total_progress}%; background: #4caf50; height: 100%; text-align: center; color: white; font-weight: bold;">
-                ${Math.round(course.total_progress)}%
-            </div>
-        </div>
-    </div>
-    <br>
-`;
-
+            data.forEach(course => {
+                const progressBar = `
+                    <div>
+                        <h3>${course.course_name}</h3>
+                        <div style="background: #ddd; width: 100%; height: 20px; border-radius: 5px;">
+                            <div style="width: ${course.total_progress}%; background: #4caf50; height: 100%; text-align: center; color: white; font-weight: bold;">
+                                ${Math.round(course.total_progress)}%
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+                `;
                 progressContainer.innerHTML += progressBar;
             });
         })
         .catch(error => console.error("Error fetching progress:", error));
 });
+
+// Modify viewMaterials to fetch progress immediately
 function viewMaterials(courseId) {
     window.location.href = `course-materials.html?courseId=${courseId}`;
+    fetchProgress(); // Immediately fetch progress after viewing the material
 }
+
 
 
 
@@ -296,7 +413,7 @@ async function enrollCourse(courseId, courseName) {
         async function fetchProgress() {
     try {
         const userId = localStorage.getItem('userId');
-        const response = await fetch(`/progress?userId=${userId}`);
+        const response = await fetch(`/progress?userId=${userId}`); // Make sure the backend returns progress data
         const data = await response.json();
 
         if (response.ok && data.length > 0) {
@@ -304,21 +421,20 @@ async function enrollCourse(courseId, courseName) {
             progressContainer.innerHTML = ''; // Clear previous content
 
             data.forEach(course => {
-    const progressElement = document.createElement('div');
-    progressElement.classList.add('course-progress-item');
-    progressElement.innerHTML = `
-        <div>
-            <span><strong>${course.course_name}</strong></span>
-            <div class="progress-bar">
-                <div class="progress" style="width: ${course.progress_percentage}%; background-color: ${course.progress_percentage >= 100 ? '#28a745' : '#ffc107'};">
-                    ${course.progress_percentage.toFixed(2)}%
-                </div>
-            </div>
-        </div>
-    `;
-    progressContainer.appendChild(progressElement);
-});
-
+                const progressElement = document.createElement('div');
+                progressElement.classList.add('course-progress-item');
+                progressElement.innerHTML = `
+                    <div>
+                        <span><strong>${course.course_name}</strong></span>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: ${course.total_progress}%; background-color: ${course.total_progress >= 100 ? '#28a745' : '#ffc107'};">
+                                ${Math.round(course.total_progress)}%
+                            </div>
+                        </div>
+                    </div>
+                `;
+                progressContainer.appendChild(progressElement);
+            });
         } else {
             document.getElementById('course-progress').innerHTML = '<p>No progress available.</p>';
         }
@@ -348,7 +464,112 @@ async function loginUser() {
         alert(data.message);
     }
 }
+async function submitFile(deadlineId) {
+    console.log("Received deadline_id before parsing:", deadlineId);
 
+    // Ensure deadlineId is converted to an integer
+    deadlineId = parseInt(deadlineId, 10);
+    console.log("Received deadline_id after parsing:", deadlineId);
+
+    if (isNaN(deadlineId)) {
+        alert("Invalid deadline ID.");
+        return;
+    }
+
+    // Target file input correctly
+    const fileInput = document.querySelector(`#file-input-${deadlineId}`);
+    
+    if (!fileInput) {
+        alert("File input field not found.");
+        return;
+    }
+
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert("Please select a file to submit.");
+        return;
+    }
+
+    const userId = localStorage.getItem("userId");
+    console.log("Received user_id:", userId);
+
+    if (!userId) {
+        alert("User is not logged in.");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("deadlineId", deadlineId); // Send deadlineId
+    formData.append("userId", userId); // Send userId
+
+    try {
+        const response = await fetch("/submit-deadline", {
+            method: "POST",
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            alert("File submitted successfully!");
+            fileInput.disabled = true;
+            document.querySelector(`#submit-btn-${deadlineId}`).disabled = true;
+            document.querySelector(`#file-input-${deadlineId}`).parentElement.innerHTML += "<span>Submitted</span>";
+        } else {
+            alert(result.message || "An error occurred while submitting the file.");
+        }
+    } catch (error) {
+        console.error("Error submitting file:", error);
+        alert("An error occurred while submitting the file.");
+    }
+}
+
+
+
+
+
+
+
+async function fetchDeadlines() {
+    try {
+        const userId = localStorage.getItem('userId'); // Get logged-in student's ID
+        const response = await fetch(`/get-deadlines/${userId}`); // Fetch from server
+        const data = await response.json();
+
+        if (response.ok && data.length > 0) {
+            const deadlinesList = document.getElementById('deadlines-list');
+            deadlinesList.innerHTML = ''; // Clear previous content
+
+            data.forEach(deadline => {
+    const deadlineDate = new Date(deadline.end_date);
+    const formattedDate = deadlineDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' });
+    const formattedTime = deadlineDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    const listItem = document.createElement('li');
+    listItem.innerHTML = `
+        <strong>${deadline.course_name}</strong>: ${deadline.deadline_type} - <em>${formattedDate} at ${formattedTime}</em>
+        <input type="file" id="file-input-${deadline.deadline_id}" />
+       <button id="submit-btn-${deadline.deadline_id}" onclick="submitFile(${deadline.deadline_id})">Submit</button>
+
+    `;
+    deadlinesList.appendChild(listItem);
+});
+
+        } else {
+            document.getElementById('deadlines-list').innerHTML = '<li>No upcoming deadlines.</li>';
+        }
+    } catch (error) {
+        console.error('Error fetching deadlines:', error);
+    }
+}
+
+
+// Call the function when the page loads
+document.addEventListener('DOMContentLoaded', fetchDeadlines);
+
+window.addEventListener('focus', fetchProgress);
 
     </script>
 

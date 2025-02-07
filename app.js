@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const pool = require('./db'); // Database connection
+const multer = require('multer');
 
 const app = express();
 const port = 3000;
@@ -18,6 +19,16 @@ app.use(session({
     saveUninitialized: true,
     cookie: { secure: false } // Use 'secure: true' in production with HTTPS
 }));
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/'); // Set the destination folder (make sure the folder exists)
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`); // Use a unique filename
+    }
+});
+
+const upload = multer({ storage: storage });
 
 // Serve Admin Dashboard
 app.get('/admin', (req, res) => {
@@ -223,13 +234,21 @@ app.post('/register', async (req, res) => {
 // Get All Users Endpoint
 app.get('/users', async (req, res) => {
     try {
-        const result = await pool.query('SELECT user_id, name, username, email, role FROM Users');
-        res.json(result.rows); // Send the result as JSON
+        const result = await pool.query(`
+            SELECT users.user_id, users.name, users.username, users.email, users.role,
+                COALESCE(json_agg(DISTINCT courses.course_name) FILTER (WHERE courses.course_id IS NOT NULL), '[]') AS enrolled_courses
+            FROM users
+            LEFT JOIN enrollments ON users.user_id = enrollments.user_id
+            LEFT JOIN courses ON enrollments.course_id = courses.course_id
+            GROUP BY users.user_id;
+        `);
+        res.json(result.rows);
     } catch (error) {
         console.error('Error fetching users:', error);
-        res.status(500).json({ success: false, message: 'An error occurred while fetching users.' });
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 app.post('/add-material', async (req, res) => {
     const { course_id, material_type, material_name, material_link } = req.body;
 
@@ -423,6 +442,132 @@ app.get('/get-progress/:userId', async (req, res) => {
         res.status(500).json({ success: false, message: 'An error occurred while fetching progress.' });
     }
 });
+app.delete('/users/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        await pool.query('DELETE FROM enrollments WHERE user_id = $1', [userId]);
+        await pool.query('DELETE FROM user_progress WHERE user_id = $1', [userId]);
+        await pool.query('DELETE FROM analytics WHERE user_id = $1', [userId]);
+        await pool.query('DELETE FROM users WHERE user_id = $1', [userId]);
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+app.post('/add-deadline', async (req, res) => { 
+    try {
+        const { course_id, deadline_type, start_date, end_date } = req.body;
+
+        // Insert the new deadline into the deadlines table
+        const result = await pool.query(
+            "INSERT INTO deadlines (course_id, deadline_type, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING deadline_id",
+            [course_id, deadline_type, start_date, end_date]
+        );
+        
+        const newDeadlineId = result.rows[0].deadline_id;
+
+        // Fetch students enrolled in the course
+        const enrolledStudentsResult = await pool.query(
+            "SELECT user_id FROM enrollments WHERE course_id = $1",
+            [course_id]
+        );
+
+        const students = enrolledStudentsResult.rows;
+
+        // Insert a record for each student into the user_deadline_status table
+        for (const student of students) {
+            await pool.query(
+                "INSERT INTO user_deadline_status (user_id, deadline_id, status) VALUES ($1, $2, 'not submitted')",
+                [student.user_id, newDeadlineId]
+            );
+        }
+
+        res.json({ message: "Deadline added successfully!" });
+    } catch (error) {
+        console.error("Error adding deadline:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+app.get('/get-deadlines/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const query = `
+            SELECT d.deadline_id, d.course_id, d.deadline_type, d.end_date, c.course_name
+            FROM deadlines d
+            JOIN courses c ON d.course_id = c.course_id
+            WHERE EXISTS (
+                SELECT 1 FROM enrollments e WHERE e.user_id = $1 AND e.course_id = d.course_id
+            )
+                  AND NOT EXISTS (
+                SELECT 1 FROM submissions s WHERE s.user_id = $1 AND s.deadline_id = d.deadline_id
+            )
+        `;
+
+        const { rows } = await pool.query(query, [userId]);
+        
+        console.log("Fetched Deadlines:", rows); // 🔍 Debugging: Check if deadline_id exists
+        res.json(rows);
+    } catch (error) {
+        console.error("Error fetching deadlines:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+
+app.post("/submit-deadline", upload.single("file"), async (req, res) => {
+    try {
+        // Retrieve fields from FormData
+        let { deadlineId, userId } = req.body;
+        const file_path = req.file ? req.file.path : null;
+        const submission_time = new Date();
+
+        // Convert userId and deadlineId to integers
+        userId = parseInt(userId, 10);
+        deadlineId = parseInt(deadlineId, 10);
+
+        // Debugging logs
+        console.log("Received userId:", userId);
+        console.log("Received deadlineId:", deadlineId);
+
+        if (isNaN(userId) || isNaN(deadlineId)) {
+            return res.status(400).json({ error: "Invalid userId or deadlineId" });
+        }
+
+        if (!file_path) {
+            return res.status(400).json({ error: "No file uploaded" });
+        }
+
+        // Insert into submissions table
+        const insertSubmissionQuery = `
+            INSERT INTO submissions (user_id, deadline_id, file_path, submission_time)
+            VALUES ($1, $2, $3, $4) RETURNING *`;
+
+        const submissionResult = await pool.query(insertSubmissionQuery, [userId, deadlineId, file_path, submission_time]);
+
+        // Update the user_deadline_status table
+        const updateStatusQuery = `
+            UPDATE user_deadline_status
+            SET status = 'submitted', submission_time = $1
+            WHERE user_id = $2 AND deadline_id = $3`;
+
+        await pool.query(updateStatusQuery, [submission_time, userId, deadlineId]);
+
+        res.status(200).json({ success: true, message: "Submission successful", submission: submissionResult.rows[0] });
+    } catch (error) {
+        console.error("Error submitting file:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+
+
+
+
+
+
 
 
 

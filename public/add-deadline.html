@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Deadline</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            text-align: center;
+            padding: 50px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 10px;
+            width: 50%;
+            margin: auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        select, input {
+            width: 80%;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            border: none;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Add Deadline</h2>
+        <form id="deadline-form">
+            <label for="course">Select Course:</label>
+            <select id="course" name="course" required></select>
+
+            <label for="deadline-type">Deadline Type:</label>
+            <select id="deadline-type" name="deadline_type" required>
+                <option value="Assignment">Assignment</option>
+                <option value="Exam">Exam</option>
+                <option value="Project">Project</option>
+            </select>
+
+            <label for="start-date">Start Date:</label>
+            <input type="datetime-local" id="start-date" name="start_date" required>
+
+            <label for="end-date">End Date:</label>
+            <input type="datetime-local" id="end-date" name="end_date" required>
+
+            <button type="submit">Add Deadline</button>
+        </form>
+    </div>
+
+    <script>
+           document.addEventListener("DOMContentLoaded", async () => {
+            const userId = localStorage.getItem("userId");
+
+            if (!userId) {
+                alert("You are not logged in!");
+                window.location.href = "/index.html";
+                return;
+            }
+
+            try {
+                // Fetch courses assigned to the logged-in doctor
+                const response = await fetch(`/doctor-courses?user_id=${userId}`);
+                const courses = await response.json();
+
+                if (!courses.length) {
+                    alert("You have no assigned courses.");
+                    return;
+                }
+
+                const courseDropdown = document.getElementById("course");
+                courses.forEach(course => {
+                    const option = document.createElement("option");
+                    option.value = course.course_id;
+                    option.textContent = course.course_name;
+                    courseDropdown.appendChild(option);
+                });
+            } catch (error) {
+                console.error("Error fetching courses:", error);
+                alert("Failed to load courses.");
+            }
+        });
+
+            document.getElementById("deadline-form").addEventListener("submit", function(event) {
+                event.preventDefault();
+
+                const course_id = document.getElementById("course").value;
+                const deadline_type = document.getElementById("deadline-type").value;
+                const start_date = document.getElementById("start-date").value;
+                const end_date = document.getElementById("end-date").value;
+
+                fetch('/add-deadline', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ course_id, deadline_type, start_date, end_date })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    document.getElementById("deadline-form").reset();
+                })
+                .catch(error => console.error("Error:", error));
+            });
+       
+    </script>
+</body>
+</html>

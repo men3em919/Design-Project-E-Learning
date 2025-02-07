@@ -134,6 +134,7 @@
                     <th>Username</th>
                     <th>Email</th>
                     <th>Role</th>
+                    <th>Courses</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -158,26 +159,28 @@
                 userTable.innerHTML = ''; // Clear previous table content
 
                 users.forEach(user => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${user.name}</td>
-                        <td>${user.username}</td>
-                        <td>${user.email}</td>
-                        <td>
-                            <select onchange="updateUserRole('${user.user_id}', this.value)">
-                                <option value="User" ${user.role === 'User' ? 'selected' : ''}>User</option>
-                                <option value="Admin" ${user.role === 'Admin' ? 'selected' : ''}>Admin</option>
-                                <option value="Blocked" ${user.role === 'Blocked' ? 'selected' : ''}>Blocked</option>
-                            </select>
-                        </td>
-                        <td class="actions">
-                            <button class="edit-btn" onclick="updateUserRole('${user.user_id}', 'Admin')">Set Admin</button>
-                            <button class="block-btn" onclick="blockUser('${user.user_id}')">Block</button>
-                            <button class="delete-btn" onclick="deleteUser('${user.user_id}')">Delete</button>
-                        </td>
-                    `;
-                    userTable.appendChild(row);
-                });
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td>${user.name}</td>
+        <td>${user.username}</td>
+        <td>${user.email}</td>
+        <td>
+            <select onchange="updateUserRole('${user.user_id}', this.value)">
+                <option value="User" ${user.role === 'User' ? 'selected' : ''}>User</option>
+                <option value="Admin" ${user.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                <option value="Blocked" ${user.role === 'Blocked' ? 'selected' : ''}>Blocked</option>
+            </select>
+        </td>
+        <td>${user.enrolled_courses.length > 0 ? user.enrolled_courses.join(', ') : 'No courses'}</td>
+        <td class="actions">
+            <button class="edit-btn" onclick="updateUserRole('${user.user_id}', 'Admin')">Set Admin</button>
+            <button class="block-btn" onclick="blockUser('${user.user_id}')">Block</button>
+            <button class="delete-btn" onclick="deleteUser('${user.user_id}')">Delete</button>
+        </td>
+    `;
+    userTable.appendChild(row);
+});
+
             } catch (error) {
                 console.error('Error fetching users:', error);
                 alert('Failed to fetch users.');
