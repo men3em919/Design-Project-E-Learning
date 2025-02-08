@@ -130,7 +130,11 @@
             <!-- List of materials will be populated here -->
         </div>
     </div>
-
+    <div class="materials-list">
+        <h2>Quizzes</h2>
+        <div id="quizzes"></div>
+    </div>
+    
     <div class="footer">
         <p>© 2024 E-Learning Platform. Course Materials Page.</p>
     </div>
@@ -224,53 +228,33 @@ async function updateProgress(userId, courseId, materialId, materialType) {
         alert('An error occurred while updating progress.');
     }
 }
-async function loadQuiz(material_id) {
-    const response = await fetch(`/quiz/${material_id}`);
-    const questions = await response.json();
-    
-    let quizHTML = "";
-    questions.forEach((q, index) => {
-        quizHTML += `<p>${index + 1}. ${q.question_text}</p>`;
-        q.options.forEach(option => {
-            quizHTML += `<label>
-                <input type="radio" name="q${q.question_id}" value="${option.option_id}">
-                ${option.option_text}
-            </label><br>`;
-        });
-    });
+async function fetchQuizzes() {
+    try {
+        const response = await fetch(`/quizzes/${courseId}`);
+        const data = await response.json();
 
-    document.getElementById("quiz-container").innerHTML = quizHTML;
-}
+        if (response.ok && data.length > 0) {
+            const quizzesContainer = document.getElementById('quizzes');
+            quizzesContainer.innerHTML = '<h2>Quizzes</h2>'; 
 
-async function submitQuiz(user_id, quiz_id) {
-    const answers = [];
-    document.querySelectorAll("input[type=radio]:checked").forEach(input => {
-        answers.push({ question_id: input.name.substring(1), selected_option: input.value });
-    });
-
-    const response = await fetch("/submit-quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id, quiz_id, answers }),
-    });
-
-    if (response.ok) {
-        alert("Quiz submitted! Fetching feedback...");
-        loadFeedback(user_id, quiz_id);
+            data.forEach(quiz => {
+                const quizElement = document.createElement('div');
+                quizElement.classList.add('material-item');
+                quizElement.innerHTML = `
+                    <span><strong>${quiz.quiz_title}</strong></span>
+                    <a href="quiz.html?quizId=${quiz.quiz_id}">Take Quiz</a>
+                `;
+                quizzesContainer.appendChild(quizElement);
+            });
+        } else {
+            document.getElementById('quizzes').innerHTML = '<p>No quizzes available for this course.</p>';
+        }
+    } catch (error) {
+        console.error('Error fetching quizzes:', error);
     }
 }
+fetchQuizzes();
 
-async function loadFeedback(user_id, quiz_id) {
-    const response = await fetch(`/quiz-feedback/${user_id}/${quiz_id}`);
-    const feedback = await response.json();
-    
-    let feedbackHTML = "<h3>Recommended Lectures:</h3>";
-    feedback.forEach(f => {
-        feedbackHTML += `<p>${f.feedback_text} - <a href="${f.material_link}">${f.material_name}</a></p>`;
-    });
-
-    document.getElementById("feedback-container").innerHTML = feedbackHTML;
-}
 
 
 

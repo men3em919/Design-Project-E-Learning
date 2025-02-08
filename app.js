@@ -599,9 +599,107 @@ app.post('/create-quiz', async (req, res) => {
 });
 
 
+app.get('/quizzes/:courseId', async (req, res) => {
+    const { courseId } = req.params;
+    try {
+        const result = await pool.query("SELECT * FROM quizzes WHERE course_id = $1", [courseId]);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Error fetching quizzes" });
+    }
+});
+app.get('/quiz-questions/:quizId', async (req, res) => {
+    const { quizId } = req.params;
+    try {
+        const result = await pool.query(`
+            SELECT q.question_id, q.question_text,
+                json_build_object(
+                    'A', q.option_a,
+                    'B', q.option_b,
+                    'C', q.option_c,
+                    'D', q.option_d
+                ) AS options,
+                q.correct_answer
+            FROM questions q
+            WHERE q.quiz_id = $1;
+        `, [quizId]);
+
+        console.log("Fetched Questions:", result.rows); // Debugging log
+        res.json(result.rows);
+    } catch (err) {
+        console.error("Error fetching questions:", err);
+        res.status(500).json({ error: "Error fetching questions" });
+    }
+});
+
+
+app.post('/submit-quiz', async (req, res) => {
+    const { user_id, quiz_id, answers } = req.body;
+
+    try {
+        const client = await pool.connect();
+        try {
+            // Insert each answer into the quiz_attempts table
+            const queryPromises = answers.map(async (answer) => {
+                const { question_id, selected_option } = answer;
+
+                // Fetch the correct answer from the questions table
+                const correctAnswerResult = await client.query(
+                    `SELECT correct_answer FROM questions WHERE question_id = $1`,
+                    [question_id]
+                );
+
+                if (correctAnswerResult.rows.length === 0) {
+                    throw new Error(`Question ID ${question_id} not found.`);
+                }
+
+                const correctAnswer = correctAnswerResult.rows[0].correct_answer;
+                const isCorrect = selected_option === correctAnswer; // Compare selected option with the correct answer
+
+                // Insert into quiz_attempts table
+                await client.query(
+                    `INSERT INTO quiz_attempts (user_id, quiz_id, question_id, selected_option, is_correct) 
+                     VALUES ($1, $2, $3, $4, $5)`,
+                    [user_id, quiz_id, question_id, selected_option, isCorrect]
+                );
+            });
+
+            // Execute all queries
+            await Promise.all(queryPromises);
+
+            res.json({ message: "Quiz submitted successfully!" });
+        } finally {
+            client.release();
+        }
+    } catch (err) {
+        console.error("Error submitting quiz:", err);
+        res.status(500).json({ error: "Error submitting quiz" });
+    }
+});
 
 
 
+
+app.get('/quiz-feedback/:userId/:quizId', async (req, res) => {
+    const { userId, quizId } = req.params;
+
+    try {
+        // Get incorrect answers from the quiz_attempts table
+        const incorrectAnswers = await pool.query(`
+            SELECT q.question_text, m.material_name, m.material_link
+            FROM quiz_attempts qa
+            JOIN questions q ON qa.question_id = q.question_id
+            JOIN materials m ON q.material_id = m.material_id
+            WHERE qa.user_id = $1 AND qa.quiz_id = $2 AND qa.is_correct = FALSE
+        `, [userId, quizId]);
+
+        res.json(incorrectAnswers.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Error fetching feedback" });
+    }
+});
 
 
 

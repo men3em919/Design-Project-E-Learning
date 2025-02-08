@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Take Quiz</title>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Take Quiz</h1>
+    </div>
+
+    <div class="quiz-container">
+        <form id="quiz-form">
+            <div id="quiz-questions"></div>
+            <button type="submit">Submit Quiz</button>
+        </form>
+    </div>
+
+    <div id="feedback"></div>
+
+    <script>
+        const quizId = new URLSearchParams(window.location.search).get('quizId');
+        const userId = localStorage.getItem('userId');
+        async function loadQuiz() {
+    console.log("Fetching quiz questions...");
+    const response = await fetch(`/quiz-questions/${quizId}`);
+    const questions = await response.json();
+    console.log("API Response:", questions);
+
+    if (questions.length === 0) {
+        document.getElementById("quiz-questions").innerHTML = "<p>No questions found for this quiz.</p>";
+        return;
+    }
+
+    let quizHTML = "";
+    questions.forEach((q, index) => {
+        quizHTML += `<p>${index + 1}. ${q.question_text}</p>`;
+
+        // Loop through the options object correctly
+        for (const [key, value] of Object.entries(q.options)) {
+            quizHTML += `<label>
+                <input type="radio" name="q${q.question_id}" value="${key}">
+                ${key}: ${value}
+            </label><br>`;
+        }
+    });
+
+    document.getElementById("quiz-questions").innerHTML = quizHTML;
+}
+
+
+
+        async function submitQuiz(event) {
+    event.preventDefault();
+
+    const answers = [];
+    document.querySelectorAll("input[type=radio]:checked").forEach(input => {
+        answers.push({ question_id: input.name.substring(1), selected_option: input.value });
+    });
+
+    const response = await fetch("/submit-quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, quiz_id: quizId, answers }),
+    });
+
+    if (response.ok) {
+        alert("Quiz submitted! Fetching feedback...");
+        loadFeedback();  // Show feedback
+    }
+}
+
+
+        async function loadFeedback() {
+            const response = await fetch(`/quiz-feedback/${userId}/${quizId}`);
+            const feedback = await response.json();
+
+            let feedbackHTML = "<h3>Recommended Lectures:</h3>";
+            feedback.forEach(f => {
+                feedbackHTML += `<p>${f.feedback_text} - <a href="${f.material_link}">${f.material_name}</a></p>`;
+            });
+
+            document.getElementById("feedback").innerHTML = feedbackHTML;
+        }
+
+        document.getElementById("quiz-form").addEventListener("submit", submitQuiz);
+        loadQuiz();
+        async function loadFeedback() {
+    const response = await fetch(`/quiz-feedback/${userId}/${quizId}`);
+    const feedback = await response.json();
+
+    if (feedback.length > 0) {
+        let feedbackHTML = "<h3>Recommended Lectures for Review:</h3>";
+        feedback.forEach(f => {
+            feedbackHTML += `<p>${f.question_text}: <a href="${f.material_link}">${f.material_name}</a></p>`;
+        });
+        document.getElementById("feedback").innerHTML = feedbackHTML;
+    } else {
+        document.getElementById("feedback").innerHTML = "<p>Great job! No incorrect answers.</p>";
+    }
+}
+
+    </script>
+
+</body>
+</html>
