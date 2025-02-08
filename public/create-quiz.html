@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Quiz</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
+        h2 { text-align: center; }
+        label { font-weight: bold; display: block; margin-top: 10px; }
+        select, input, textarea { width: 100%; padding: 10px; margin: 5px 0; }
+        .question-block { border: 1px solid #ddd; padding: 10px; margin-top: 10px; border-radius: 5px; background: #f9f9f9; }
+        .options input { width: 90%; display: inline-block; }
+        .correct-answer select { width: 50px; }
+        button { background: #007bff; color: white; border: none; padding: 10px; cursor: pointer; display: block; width: 100%; margin-top: 10px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Add Quiz</h2>
+    
+    <label>Select Course:</label>
+    <select id="courseSelect" onchange="loadMaterials()">
+        <option value="">Loading courses...</option>
+    </select>
+
+    <label>Quiz Title:</label>
+    <input type="text" id="quiz-title" placeholder="Enter quiz title">
+    
+    <div id="questionsContainer"></div>
+
+    <button onclick="addQuestion()">Add Question</button>
+    <button onclick="submitQuiz()">Create Quiz</button>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const userId = localStorage.getItem("userId");
+
+        if (!userId) {
+            alert("You are not logged in!");
+            window.location.href = "/index.html";
+            return;
+        }
+
+        try {
+            const response = await fetch(`/doctor-courses?user_id=${userId}`);
+            const courses = await response.json();
+
+            if (!courses.length) {
+                alert("You have no assigned courses.");
+                return;
+            }
+
+            const courseDropdown = document.getElementById("courseSelect");
+            courseDropdown.innerHTML = '<option value="">Select a course</option>';
+
+            courses.forEach(course => {
+                const option = document.createElement("option");
+                option.value = course.course_id;
+                option.textContent = course.course_name;
+                courseDropdown.appendChild(option);
+            });
+        } catch (error) {
+            console.error("Error fetching courses:", error);
+            alert("Failed to load courses.");
+        }
+    });
+
+    async function loadMaterials() {
+        const courseId = document.getElementById('courseSelect').value;
+        if (!courseId) return;
+
+        try {
+            const response = await fetch(`/materials/${courseId}`);
+            const materials = await response.json();
+            if (!Array.isArray(materials)) {
+                alert("No materials found.");
+                return;
+            }
+
+            document.querySelectorAll('.materialSelect').forEach(select => {
+                select.innerHTML = '<option value="">Select a material</option>';
+                materials.forEach(m => {
+                    const option = document.createElement("option");
+                    option.value = m.material_id;
+                    option.textContent = m.material_name;
+                    select.appendChild(option);
+                });
+            });
+        } catch (error) {
+            console.error("Error fetching materials:", error);
+            alert("Failed to load materials.");
+        }
+    }
+
+    function addQuestion() {
+        const container = document.getElementById('questionsContainer');
+        const questionIndex = container.children.length + 1;
+
+        const questionBlock = document.createElement("div");
+        questionBlock.classList.add("question-block");
+
+        questionBlock.innerHTML = `
+            <label>Question ${questionIndex}:</label>
+            <textarea class="question-text" placeholder="Enter question"></textarea>
+
+            <label>Select Material:</label>
+            <select class="materialSelect">
+                <option value="">Select a course first</option>
+            </select>
+
+            <div class="options">
+                <label>Options:</label>
+                <div><input type="text" class="option-a" placeholder="Option A"></div>
+                <div><input type="text" class="option-b" placeholder="Option B"></div>
+                <div><input type="text" class="option-c" placeholder="Option C"></div>
+                <div><input type="text" class="option-d" placeholder="Option D"></div>
+            </div>
+
+            <label>Correct Answer:</label>
+            <select class="correct-answer">
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+            </select>
+        `;
+
+        container.appendChild(questionBlock);
+        loadMaterials(); // Reload materials for new question
+    }
+
+    async function submitQuiz() {
+        const userId = localStorage.getItem("userId");
+        const courseId = document.getElementById("courseSelect").value;
+        const quizTitle = document.getElementById("quiz-title").value;
+
+        if (!userId || !courseId || !quizTitle) {
+            alert("Please fill in all required fields.");
+            return;
+        }
+
+        const questions = [];
+        document.querySelectorAll(".question-block").forEach(block => {
+            const questionText = block.querySelector(".question-text").value;
+            const materialId = block.querySelector(".materialSelect").value;
+            const optionA = block.querySelector(".option-a").value;
+            const optionB = block.querySelector(".option-b").value;
+            const optionC = block.querySelector(".option-c").value;
+            const optionD = block.querySelector(".option-d").value;
+            const correctAnswer = block.querySelector(".correct-answer").value;
+
+            if (!questionText || !materialId || !optionA || !optionB || !optionC || !optionD) {
+                alert("Please fill in all fields for each question.");
+                return;
+            }
+
+            questions.push({ material_id: materialId, question_text: questionText, option_a: optionA, option_b: optionB, option_c: optionC, option_d: optionD, correct_answer: correctAnswer });
+        });
+
+        if (questions.length === 0) {
+            alert("Add at least one question.");
+            return;
+        }
+
+        try {
+            const response = await fetch('/create-quiz', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: userId, course_id: courseId, quiz_title: quizTitle, questions })
+            });
+
+            const data = await response.json();
+            alert(data.message);
+        } catch (error) {
+            console.error("Error submitting quiz:", error);
+            alert("Failed to submit quiz.");
+        }
+    }
+</script>
+
+</body>
+</html>

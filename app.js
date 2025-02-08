@@ -562,6 +562,42 @@ app.post("/submit-deadline", upload.single("file"), async (req, res) => {
     }
 });
 
+// API to create a quiz
+app.post('/create-quiz', async (req, res) => {
+    const { user_id, course_id, quiz_title, questions } = req.body;
+
+    if (!user_id || !course_id || !quiz_title || !questions || questions.length === 0) {
+        return res.status(400).json({ success: false, message: "All fields are required." });
+    }
+
+    try {
+        // Insert into quizzes table
+        const quizResult = await pool.query(
+            'INSERT INTO quizzes (course_id, user_id, quiz_title) VALUES ($1, $2, $3) RETURNING quiz_id',
+            [course_id, user_id, quiz_title]
+        );
+
+        const quiz_id = quizResult.rows[0].quiz_id;
+
+        // Insert questions
+        const questionPromises = questions.map(q =>
+            pool.query(
+                `INSERT INTO questions (quiz_id, material_id, question_text, option_a, option_b, option_c, option_d, correct_answer)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                [quiz_id, q.material_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer]
+            )
+        );
+
+        await Promise.all(questionPromises);
+
+        res.json({ success: true, message: "Quiz created successfully." });
+
+    } catch (error) {
+        console.error("Error creating quiz:", error);
+        res.status(500).json({ success: false, message: "Server error." });
+    }
+});
+
 
 
 
