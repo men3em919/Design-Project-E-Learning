@@ -1,10 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Take Quiz</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: #000;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            width: 100%;
+            font-size: 24px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .quiz-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 600px;
+            margin-top: 20px;
+        }
+
+        .quiz-container h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .quiz-container label {
+            display: block;
+            margin: 10px 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .quiz-container label:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #feedback {
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+
+        #feedback h3 {
+            margin-bottom: 10px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            width: 100%;
+            margin-top: 20px;
+        }
+    </style>
 </head>
+
 <body>
 
     <div class="header">
@@ -12,6 +107,7 @@
     </div>
 
     <div class="quiz-container">
+        <h2>Quiz Questions</h2>
         <form id="quiz-form">
             <div id="quiz-questions"></div>
             <button type="submit">Submit Quiz</button>
@@ -20,89 +116,91 @@
 
     <div id="feedback"></div>
 
+    <div class="footer">
+        <p>© 2024 E-Learning Platform - Quiz Section</p>
+    </div>
+
     <script>
         const quizId = new URLSearchParams(window.location.search).get('quizId');
         const userId = localStorage.getItem('userId');
+
         async function loadQuiz() {
-    console.log("Fetching quiz questions...");
-    const response = await fetch(`/quiz-questions/${quizId}`);
-    const questions = await response.json();
-    console.log("API Response:", questions);
+            console.log("Fetching quiz questions...");
+            const response = await fetch(`/quiz-questions/${quizId}`);
+            const questions = await response.json();
+            console.log("API Response:", questions);
 
-    if (questions.length === 0) {
-        document.getElementById("quiz-questions").innerHTML = "<p>No questions found for this quiz.</p>";
-        return;
-    }
+            if (questions.length === 0) {
+                document.getElementById("quiz-questions").innerHTML = "<p>No questions found for this quiz.</p>";
+                return;
+            }
 
-    let quizHTML = "";
-    questions.forEach((q, index) => {
-        quizHTML += `<p>${index + 1}. ${q.question_text}</p>`;
+            let quizHTML = "";
+            questions.forEach((q, index) => {
+                quizHTML += `<p><strong>${index + 1}. ${q.question_text}</strong></p>`;
 
-        // Loop through the options object correctly
-        for (const [key, value] of Object.entries(q.options)) {
-            quizHTML += `<label>
-                <input type="radio" name="q${q.question_id}" value="${key}">
-                ${key}: ${value}
-            </label><br>`;
-        }
-    });
-
-    document.getElementById("quiz-questions").innerHTML = quizHTML;
-}
-
-
-
-        async function submitQuiz(event) {
-    event.preventDefault();
-
-    const answers = [];
-    document.querySelectorAll("input[type=radio]:checked").forEach(input => {
-        answers.push({ question_id: input.name.substring(1), selected_option: input.value });
-    });
-
-    const response = await fetch("/submit-quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, quiz_id: quizId, answers }),
-    });
-
-    if (response.ok) {
-        alert("Quiz submitted! Fetching feedback...");
-        loadFeedback();  // Show feedback
-    }
-}
-
-
-        async function loadFeedback() {
-            const response = await fetch(`/quiz-feedback/${userId}/${quizId}`);
-            const feedback = await response.json();
-
-            let feedbackHTML = "<h3>Recommended Lectures:</h3>";
-            feedback.forEach(f => {
-                feedbackHTML += `<p>${f.feedback_text} - <a href="${f.material_link}">${f.material_name}</a></p>`;
+                for (const [key, value] of Object.entries(q.options)) {
+                    quizHTML += `<label>
+                        <input type="radio" name="q${q.question_id}" value="${key}">
+                        ${key}: ${value}
+                    </label>`;
+                }
             });
 
-            document.getElementById("feedback").innerHTML = feedbackHTML;
+            document.getElementById("quiz-questions").innerHTML = quizHTML;
         }
 
-        document.getElementById("quiz-form").addEventListener("submit", submitQuiz);
-        loadQuiz();
+        async function submitQuiz(event) {
+            event.preventDefault();
+
+            const answers = [];
+            document.querySelectorAll("input[type=radio]:checked").forEach(input => {
+                answers.push({ question_id: input.name.substring(1), selected_option: input.value });
+            });
+
+            const response = await fetch("/submit-quiz", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: userId, quiz_id: quizId, answers }),
+            });
+
+            if (response.ok) {
+                alert("Quiz submitted! Fetching feedback...");
+                loadFeedback();
+            }
+        }
+
         async function loadFeedback() {
     const response = await fetch(`/quiz-feedback/${userId}/${quizId}`);
     const feedback = await response.json();
 
     if (feedback.length > 0) {
         let feedbackHTML = "<h3>Recommended Lectures for Review:</h3>";
+
+        // Use a Set to store unique lectures
+        const uniqueLectures = new Set();
+
         feedback.forEach(f => {
-            feedbackHTML += `<p>${f.question_text}: <a href="${f.material_link}">${f.material_name}</a></p>`;
+            const lectureText = `${f.material_name}: <a href="${f.material_link}" style="color: #ffdd57;">${f.material_name}</a>`;
+            uniqueLectures.add(lectureText);
         });
+
+        // Convert Set back to HTML list
+        feedbackHTML += [...uniqueLectures].map(lecture => `<p>${lecture}</p>`).join("");
+
         document.getElementById("feedback").innerHTML = feedbackHTML;
+        document.getElementById("feedback").style.display = "block";
     } else {
         document.getElementById("feedback").innerHTML = "<p>Great job! No incorrect answers.</p>";
+        document.getElementById("feedback").style.display = "block";
     }
 }
 
+document.getElementById("quiz-form").addEventListener("submit", submitQuiz);
+
+        loadQuiz();
     </script>
 
 </body>
+
 </html>

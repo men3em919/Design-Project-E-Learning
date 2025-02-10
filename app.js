@@ -687,10 +687,12 @@ app.get('/quiz-feedback/:userId/:quizId', async (req, res) => {
     try {
         // Get incorrect answers from the quiz_attempts table
         const incorrectAnswers = await pool.query(`
-            SELECT q.question_text, m.material_name, m.material_link
+            SELECT q.question_text, 
+                   COALESCE(m.material_name, 'Unknown Lecture') AS material_name, 
+                   COALESCE(m.material_link, '#') AS material_link
             FROM quiz_attempts qa
             JOIN questions q ON qa.question_id = q.question_id
-            JOIN materials m ON q.material_id = m.material_id
+            LEFT JOIN materials m ON q.material_id = m.material_id
             WHERE qa.user_id = $1 AND qa.quiz_id = $2 AND qa.is_correct = FALSE
         `, [userId, quizId]);
 
