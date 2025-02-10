@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enrollment Requests</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: #fff;
+        }
+
+        .header {
+            background-color: #000;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .approve-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .approve-btn:hover {
+            background: #218838;
+        }
+
+        .decline-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        .decline-btn:hover {
+            background: #c82333;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Enrollment Requests</h1>
+    </div>
+
+    <div class="container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Request ID</th>
+                    <th>Username</th>
+                    <th>Course Name</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="requests-table">
+                <!-- Requests will be inserted here via JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer">
+        <p>© 2024 E-Learning Platform. Enrollment Requests.</p>
+    </div>
+
+    <script>
+        async function fetchRequests() {
+            const response = await fetch('/get-enrollment-requests');
+            const requests = await response.json();
+            const table = document.getElementById('requests-table');
+            table.innerHTML = '';
+
+            requests.forEach(request => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${request.request_id}</td>
+                    <td>${request.username}</td>
+                    <td>${request.course_name}</td>
+                    <td>${request.request_status}</td>
+                    <td>
+                        <button class="approve-btn" onclick="approveRequest(${request.request_id})">Approve</button>
+                        <button class="decline-btn" onclick="declineRequest(${request.request_id})">Decline</button>
+                    </td>
+                `;
+                table.appendChild(row);
+            });
+        }
+
+        async function approveRequest(requestId) {
+            await fetch('/approve-enrollment-request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requestId })
+            });
+            fetchRequests();
+        }
+
+        async function declineRequest(requestId) {
+            await fetch('/decline-enrollment-request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requestId })
+            });
+            fetchRequests();
+        }
+
+        fetchRequests();
+    </script>
+</body>
+</html>

@@ -187,27 +187,29 @@ app.post('/enroll', async (req, res) => {
             return res.status(404).send('Course not found.');
         }
 
-        // Check if the user is already enrolled in the course
-        const existingEnrollment = await pool.query(
-            'SELECT * FROM enrollments WHERE user_id = $1 AND course_id = $2',
+        // Check if the user already has a pending request
+        const existingRequest = await pool.query(
+            'SELECT * FROM enrollments_requests WHERE user_id = $1 AND course_id = $2 AND request_status = $3',
+            [userId, courseId, 'pending']
+        );
+
+        if (existingRequest.rows.length > 0) {
+            return res.status(400).send('You have already requested to enroll in this course.');
+        }
+
+        // Insert the enrollment request into the database
+        await pool.query(
+            'INSERT INTO enrollments_requests (user_id, course_id) VALUES ($1, $2)',
             [userId, courseId]
         );
 
-        if (existingEnrollment.rows.length > 0) {
-            return res.status(400).send('You are already enrolled in this course.');
-        }
-
-        // Insert the enrollment into the database
-        const query = 'INSERT INTO enrollments (user_id, course_id, enrolled_at) VALUES ($1, $2, NOW())';
-        await pool.query(query, [userId, courseId]);
-
-        // Send a success response after successful enrollment
-        res.json({ success: true });
+        res.json({ success: true, message: 'Enrollment request submitted. Awaiting approval.' });
     } catch (error) {
-        console.error('Error during enrollment:', error);
-        res.status(500).send('An error occurred while enrolling in this course.');
+        console.error('Error during enrollment request:', error);
+        res.status(500).send('An error occurred while requesting enrollment.');
     }
 });
+
 
 
 
@@ -700,6 +702,57 @@ app.get('/quiz-feedback/:userId/:quizId', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Error fetching feedback" });
+    }
+});
+app.get('/get-enrollment-requests', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT er.request_id, u.username, c.course_name, er.request_status
+            FROM enrollments_requests er
+            JOIN users u ON er.user_id = u.user_id
+            JOIN courses c ON er.course_id = c.course_id
+            WHERE er.request_status = 'pending'
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching enrollment requests:', error);
+        res.status(500).send('An error occurred.');
+    }
+});
+app.post('/approve-enrollment-request', async (req, res) => {
+    const { requestId } = req.body;
+
+    try {
+        // Get the user_id and course_id from the request
+        const request = await pool.query('SELECT * FROM enrollments_requests WHERE request_id = $1', [requestId]);
+
+        if (request.rows.length === 0) {
+            return res.status(404).send('Request not found.');
+        }
+
+        const { user_id, course_id } = request.rows[0];
+
+        // Insert into enrollments
+        await pool.query('INSERT INTO enrollments (user_id, course_id, enrolled_at) VALUES ($1, $2, NOW())', [user_id, course_id]);
+
+        // Update request status
+        await pool.query('UPDATE enrollments_requests SET request_status = $1 WHERE request_id = $2', ['approved', requestId]);
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error approving request:', error);
+        res.status(500).send('An error occurred.');
+    }
+});
+app.post('/decline-enrollment-request', async (req, res) => {
+    const { requestId } = req.body;
+
+    try {
+        await pool.query('DELETE FROM enrollments_requests WHERE request_id = $1', [requestId]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error declining request:', error);
+        res.status(500).send('An error occurred.');
     }
 });
 
