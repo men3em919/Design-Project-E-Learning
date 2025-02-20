@@ -29,6 +29,31 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
+const nodemailer = require("nodemailer");
+
+// Configure email transport
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        user: "ahmed9ball@gmail.com",
+        pass: "ifem zkqb pikb irky" // Use an app password for security
+    }
+});
+
+// Function to send an email
+async function sendEmail(to, subject, text) {
+    try {
+        await transporter.sendMail({
+            from: '"E-Learning Platform" <ahmed9ball@gmail.com>',
+            to,
+            subject,
+            text
+        });
+        console.log("Email sent to:", to);
+    } catch (error) {
+        console.error("Error sending email:", error);
+    }
+}
 
 // Serve Admin Dashboard
 app.get('/admin', (req, res) => {
@@ -259,6 +284,18 @@ app.post('/add-material', async (req, res) => {
             'INSERT INTO materials (course_id, material_type, material_name, material_link) VALUES ($1, $2, $3, $4)',
             [course_id, material_type, material_name, material_link]
         );
+         // Get enrolled students' emails
+         const result = await pool.query(
+            "SELECT u.email FROM users u INNER JOIN enrollments e ON u.user_id = e.user_id WHERE e.course_id = $1",
+            [course_id]
+        );
+
+        // Send emails to all enrolled students
+        result.rows.forEach((user) => {
+            sendEmail(user.email, "New Course Material Available", 
+                `A new ${material_type} (${material_name}) has been added. Check it out!`
+            );
+        });
         res.status(201).json({ success: true, message: 'Material added successfully' });
     } catch (error) {
         console.error('Error adding material:', error);
@@ -469,11 +506,11 @@ app.post('/add-deadline', async (req, res) => {
         
         const newDeadlineId = result.rows[0].deadline_id;
 
-        // Fetch students enrolled in the course
-        const enrolledStudentsResult = await pool.query(
-            "SELECT user_id FROM enrollments WHERE course_id = $1",
-            [course_id]
-        );
+       // Fetch students enrolled in the course along with their emails
+       const enrolledStudentsResult = await pool.query(
+        "SELECT u.user_id, u.email FROM users u INNER JOIN enrollments e ON u.user_id = e.user_id WHERE e.course_id = $1",
+        [course_id]
+    );
 
         const students = enrolledStudentsResult.rows;
 
@@ -484,6 +521,14 @@ app.post('/add-deadline', async (req, res) => {
                 [student.user_id, newDeadlineId]
             );
         }
+  // Send email notifications to all enrolled students
+  await Promise.all(students.map((student) =>
+    sendEmail(
+        student.email,
+        "New Course Deadline Added",
+        `A new deadline for "${deadline_type}" has been added for your course. \nStart Date: ${start_date} \nEnd Date: ${end_date}. \nMake sure to submit before the deadline!`
+    )
+));
 
         res.json({ message: "Deadline added successfully!" });
     } catch (error) {
